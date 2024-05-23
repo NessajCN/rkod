@@ -1,0 +1,17 @@
+[package]
+name = "rkod"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libc = "0.2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "time",
+    "chrono",
+] }
+
+[build-dependencies]
+cc = "1.0"
+bindgen = "0.65"
