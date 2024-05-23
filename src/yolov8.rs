@@ -8,11 +8,7 @@ use std::{
 };
 
 use crate::{
-    _rknn_query_cmd_RKNN_QUERY_INPUT_ATTR, _rknn_query_cmd_RKNN_QUERY_IN_OUT_NUM,
-    _rknn_query_cmd_RKNN_QUERY_OUTPUT_ATTR, _rknn_tensor_format_RKNN_TENSOR_NCHW,
-    _rknn_tensor_qnt_type_RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC, _rknn_tensor_type_RKNN_TENSOR_INT8,
-    dump_tensor_attr, read_data_from_file, rknn_context, rknn_init, rknn_input_output_num,
-    rknn_query, rknn_tensor_attr,
+    _rknn_query_cmd_RKNN_QUERY_INPUT_ATTR, _rknn_query_cmd_RKNN_QUERY_IN_OUT_NUM, _rknn_query_cmd_RKNN_QUERY_OUTPUT_ATTR, _rknn_tensor_format_RKNN_TENSOR_NCHW, _rknn_tensor_qnt_type_RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC, _rknn_tensor_type_RKNN_TENSOR_INT8, dump_tensor_attr, image_buffer_t, read_data_from_file, rknn_context, rknn_init, rknn_input_output_num, rknn_query, rknn_tensor_attr
 };
 use libc::{c_char, c_void};
 use tracing::{error, info};
@@ -234,3 +230,5 @@ pub fn init_model(path: &str, app_ctx: &mut RknnAppContext) -> Result<()> {
 
     Ok(())
 }
+
+// pub fn inference_model(app_ctx: &RknnAppContext, img: &image_buffer_t, od_results: )
