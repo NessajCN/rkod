@@ -1,4 +1,4 @@
-// use cc;
+use cc;
 // use bindgen;
 
 use std::{env, path::Path};
@@ -10,7 +10,6 @@ fn main() {
     // Link to librknnrt lib
     let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     println!("cargo:rustc-link-search=native={}", Path::new(&dir).join("librknn_api/aarch64").display());
-    // println!("cargo:rustc-link-search=native=/home/nessaj/Projects/rkod/librknn_api/aarch64");
     println!("cargo:rustc-link-lib=dylib=rknnrt");
     cc::Build::new()
         .file("src/utils/file_utils.c")

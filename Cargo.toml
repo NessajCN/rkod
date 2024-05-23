@@ -2,6 +2,8 @@
 name = "rkod"
 version = "0.1.0"
 edition = "2021"
+authors = ["NessajCN"]
+repository = "https://github.com/NessajCN/rkod"
 
 [dependencies]
 libc = "0.2"
