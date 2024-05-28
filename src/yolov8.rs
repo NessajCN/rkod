@@ -1,7 +1,8 @@
 use std::{
     env,
     ffi::CString,
-    io::{self, Error, ErrorKind, Result},
+    fs::File,
+    io::{self, Error, ErrorKind, Read, Result},
     mem::size_of,
     path::Path,
     ptr::null_mut,
@@ -10,11 +11,14 @@ use std::{
 use crate::{
     _rknn_query_cmd_RKNN_QUERY_INPUT_ATTR, _rknn_query_cmd_RKNN_QUERY_IN_OUT_NUM,
     _rknn_query_cmd_RKNN_QUERY_OUTPUT_ATTR, _rknn_tensor_format_RKNN_TENSOR_NCHW,
-    _rknn_tensor_qnt_type_RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC, _rknn_tensor_type_RKNN_TENSOR_INT8,
-    dump_tensor_attr, image_buffer_t, image_format_t, read_data_from_file, read_image,
-    rknn_context, rknn_init, rknn_input_output_num, rknn_query, rknn_tensor_attr,
+    _rknn_tensor_format_RKNN_TENSOR_NHWC, _rknn_tensor_qnt_type_RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC,
+    _rknn_tensor_type_RKNN_TENSOR_INT8, _rknn_tensor_type_RKNN_TENSOR_UINT8, dump_tensor_attr,
+    od::ObjectDetectList, rknn_context, rknn_init, rknn_input, rknn_input_output_num,
+    rknn_inputs_set, rknn_output, rknn_outputs_get, rknn_outputs_release, rknn_query, rknn_run,
+    rknn_tensor_attr,
 };
-use libc::{c_char, c_void};
+use image::io::Reader as ImageReader;
+use libc::c_void;
 use tracing::{error, info};
 
 #[derive(Debug, Clone)]
@@ -53,37 +57,35 @@ impl RknnAppContext {
 
     pub fn init_model(&mut self, path: &str) -> Result<()> {
         let mut ctx: rknn_context = 0;
-        let mut model_raw = 0 as c_char;
-        let mut model_ptr = &mut model_raw as *mut _;
-        let model = &mut model_ptr as *mut *mut _;
-        // let model = Box::into_raw(Box::new(Box::into_raw(model_raw)));
 
-        // Find absolute path of the model
-        let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-        let path = format!("{}", Path::new(&dir).join(path).display());
-        let model_path = CString::new(path).unwrap();
+        // let mut model_raw = 0 as c_char;
+        // let mut model_ptr = &mut model_raw as *mut _;
+        // let model = &mut model_ptr as *mut *mut _;
+        // // let model = Box::into_raw(Box::new(Box::into_raw(model_raw)));
 
-        // Load RKNN Model
-        let model_len = unsafe { read_data_from_file(model_path.as_ptr(), model) };
+        // // Find absolute path of the model
+        // let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+        // let path = format!("{}", Path::new(&dir).join(path).display());
+        // let model_path = CString::new(path).unwrap();
 
-        if model_len < 0 {
-            error!("Failed to load rknn model. Return code: {model_len}");
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Failed to load rknn model",
-            ));
-        }
+        // // Load RKNN Model
+        // let model_len = unsafe { read_data_from_file(model_path.as_ptr(), model) };
 
-        // let model_ptr: *mut c_void = &mut model_path as *mut _ as *mut c_void;
-        let ret = unsafe {
-            rknn_init(
-                &mut ctx,
-                *model as *mut c_void,
-                model_len as u32,
-                0,
-                null_mut(),
-            )
-        };
+        // if model_len < 0 {
+        //     error!("Failed to load rknn model. Return code: {model_len}");
+        //     return Err(io::Error::new(
+        //         io::ErrorKind::InvalidData,
+        //         "Failed to load rknn model",
+        //     ));
+        // }
+
+        let mut model = File::open(path)?;
+        let mut model_buf: Vec<u8> = Vec::new();
+
+        let model_len = model.read_to_end(&mut model_buf)?;
+        let model = model_buf.as_mut_ptr() as *mut c_void;
+
+        let ret = unsafe { rknn_init(&mut ctx, model, model_len as u32, 0, null_mut()) };
 
         if ret < 0 {
             error!("Failed to init rknn. Error code: {ret}");
@@ -232,28 +234,96 @@ impl RknnAppContext {
         );
         Ok(())
     }
-}
 
-pub fn load_image(img_path: &str) -> Result<image_buffer_t> {
-    let mut src_image = image_buffer_t {
-        width: 0,
-        height: 0,
-        width_stride: 0,
-        height_stride: 0,
-        format: 0,
-        virt_addr: null_mut(),
-        size: 0,
-        fd: 0,
-    };
-    let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let path = format!("{}", Path::new(&dir).join(img_path).display());
-    let img_path = CString::new(path).unwrap();
-    let ret = unsafe { read_image(img_path.as_ptr(), &mut src_image as *mut _) };
-    if ret != 0 {
-        return Err(Error::new(ErrorKind::InvalidData, "Failed to load image"));
+    pub fn inference_model(&self, img_path: &str) -> Result<()> {
+        let reader = ImageReader::open(img_path)?;
+        let img = match reader.decode() {
+            Ok(m) => m,
+            Err(e) => {
+                return Err(Error::new(ErrorKind::InvalidInput, e.to_string()));
+            }
+        };
+        let mut img = img
+            .resize(
+                self.model_width as u32,
+                self.model_height as u32,
+                image::imageops::FilterType::Nearest,
+            )
+            .as_bytes()
+            .to_vec();
+        let mut inputs: Vec<rknn_input> = Vec::new();
+        for n in 0..self.io_num.n_input {
+            let input = rknn_input {
+                index: n,
+                size: (self.model_width * self.model_height * self.model_channel) as u32,
+                type_: _rknn_tensor_type_RKNN_TENSOR_UINT8,
+                fmt: _rknn_tensor_format_RKNN_TENSOR_NHWC,
+                // pass_through - if 1 directly pass image buff to rknn node else if 0 do conversion first.
+                pass_through: 0,
+                buf: img.as_mut_ptr() as *mut c_void,
+            };
+            inputs.push(input);
+        }
+        let ret =
+            unsafe { rknn_inputs_set(self.rknn_ctx, self.io_num.n_input, inputs.as_mut_ptr()) };
+
+        if ret < 0 {
+            error!("Failed to set rknn input. Error code: {ret}");
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Failed to set rknn input",
+            ));
+        }
+
+        let ret = unsafe { rknn_run(self.rknn_ctx, null_mut()) };
+
+        if ret < 0 {
+            error!("Failed to run rknn. Error code: {ret}");
+            return Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                "Failed to run rknn",
+            ));
+        }
+
+        let mut outputs: Vec<rknn_output> = Vec::new();
+        for i in 0..self.io_num.n_output {
+            let output = rknn_output {
+                index: i,
+                want_float: !self.is_quant as u8,
+                is_prealloc: 0,
+                size: 0,
+                buf: null_mut() as *mut c_void,
+            };
+            outputs.push(output);
+        }
+
+        let ret = unsafe {
+            rknn_outputs_get(
+                self.rknn_ctx,
+                self.io_num.n_output,
+                outputs.as_mut_ptr(),
+                null_mut(),
+            )
+        };
+        if ret < 0 {
+            error!("Failed to get rknn outputs. Error code: {ret}");
+            return Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                "Failed to get rknnoutputs",
+            ));
+        }
+
+        // Post process
+        let dfl_len = self.output_attrs[0].dims[1] / 4;
+        let output_per_branch = self.io_num.n_output / 3;
+        for i in 0..3 {
+            
+        }
+
+        info!("Rknn running: context is now {}", self.rknn_ctx);
+        let _ = unsafe {
+            rknn_outputs_release(self.rknn_ctx, self.io_num.n_output, outputs.as_mut_ptr())
+        };
+        Ok(())
     }
-    info!("Source image loaded: {src_image:?}");
-    Ok(src_image)
 }
-
-// pub fn inference_model(self: &RknnAppContext, img: &image_buffer_t, od_results: )

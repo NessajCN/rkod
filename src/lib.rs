@@ -9,6 +9,7 @@ use std::path::Path;
 use tracing::info;
 
 pub mod yolov8;
+pub mod od;
 
 pub fn dump_tensor_attr(attr: &rknn_tensor_attr) {
     let mut name: Vec<u8> = Vec::new();

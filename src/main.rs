@@ -1,5 +1,5 @@
+use rkod::{read_lines, yolov8::RknnAppContext};
 use std::io;
-use rkod::{read_lines, yolov8::{load_image, RknnAppContext}};
 // use tracing_subscriber::fmt::time::ChronoLocal;
 
 fn main() -> io::Result<()> {
@@ -14,6 +14,6 @@ fn main() -> io::Result<()> {
     let labels = lines.flatten().collect::<Vec<String>>();
     let mut app_ctx = RknnAppContext::new();
     app_ctx.init_model("model/yolov8.rknn")?;
-    let image = load_image("model/bus.jpg")?;
+    app_ctx.inference_model("model/bus.jpg")?;
     Ok(())
 }
