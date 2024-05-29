@@ -1,11 +1,5 @@
 use std::{
-    env,
-    ffi::CString,
-    fs::File,
-    io::{self, Error, ErrorKind, Read, Result},
-    mem::size_of,
-    path::Path,
-    ptr::null_mut,
+    collections::HashSet, env, ffi::CString, fs::File, io::{self, Error, ErrorKind, Read, Result}, mem::size_of, path::Path, ptr::null_mut
 };
 
 use crate::{
@@ -13,9 +7,9 @@ use crate::{
     _rknn_query_cmd_RKNN_QUERY_OUTPUT_ATTR, _rknn_tensor_format_RKNN_TENSOR_NCHW,
     _rknn_tensor_format_RKNN_TENSOR_NHWC, _rknn_tensor_qnt_type_RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC,
     _rknn_tensor_type_RKNN_TENSOR_INT8, _rknn_tensor_type_RKNN_TENSOR_UINT8, dump_tensor_attr,
-    od::ObjectDetectList, rknn_context, rknn_init, rknn_input, rknn_input_output_num,
-    rknn_inputs_set, rknn_output, rknn_outputs_get, rknn_outputs_release, rknn_query, rknn_run,
-    rknn_tensor_attr,
+    od::{ObjectDetectList, BOX_THRESH, NMS_THRESH, OBJ_CLASS_NUM},
+    rknn_context, rknn_init, rknn_input, rknn_input_output_num, rknn_inputs_set, rknn_output,
+    rknn_outputs_get, rknn_outputs_release, rknn_query, rknn_run, rknn_tensor_attr,
 };
 use image::io::Reader as ImageReader;
 use libc::c_void;
@@ -314,11 +308,191 @@ impl RknnAppContext {
         }
 
         // Post process
+        // let mut valid_count = 0;
+
+        let mut filterBoxes: Vec<f32> = Vec::new();
+        let mut obj_probs: Vec<f32> = Vec::new();
+        let mut class_id: Vec<i32> = Vec::new();
+
         let dfl_len = self.output_attrs[0].dims[1] / 4;
         let output_per_branch = self.io_num.n_output / 3;
         for i in 0..3 {
-            
+            let (score_sum, score_sum_zp, score_sum_scale) = if output_per_branch == 3 {
+                (
+                    outputs[i * 3 + 2].buf,
+                    self.output_attrs[i * 3 + 2].zp,
+                    self.output_attrs[i * 3 + 2].scale,
+                )
+            } else {
+                (null_mut() as *mut c_void, 0, 1.0)
+            };
+            let box_idx = i * output_per_branch as usize;
+            let score_idx = i * output_per_branch as usize + 1;
+
+            let grid_h = self.output_attrs[box_idx].dims[2];
+            let grid_w = self.output_attrs[box_idx].dims[3];
+            let stride = self.model_height as u32 / grid_h;
+            if self.is_quant {
+                // process_i8
+                let grid_len = (grid_h * grid_w) as usize;
+                let score_thres_i8 = qnt_f32_to_affine(
+                    BOX_THRESH,
+                    self.output_attrs[score_idx].zp,
+                    self.output_attrs[score_idx].scale,
+                );
+                let score_sum_thres_i8 =
+                    qnt_f32_to_affine(BOX_THRESH, score_sum_zp, score_sum_scale);
+                for m in 0..grid_h {
+                    for n in 0..grid_w {
+                        let offset = (m * grid_w + n) as usize;
+                        let mut max_cls_id = -1;
+
+                        // 通过 score sum 起到快速过滤的作用
+                        if !score_sum.is_null() {
+                            let buf_offset =
+                                unsafe { *(score_sum.wrapping_add(offset) as *mut i8) };
+                            if buf_offset < score_sum_thres_i8 {
+                                continue;
+                            }
+                        }
+
+                        let mut max_score = -self.output_attrs[score_idx].zp as i8;
+                        for k in 0..OBJ_CLASS_NUM {
+                            let buf_offset = unsafe {
+                                *(outputs[score_idx]
+                                    .buf
+                                    .wrapping_add(offset + grid_len * k as usize)
+                                    as *mut i8)
+                            };
+                            if buf_offset > score_thres_i8 && buf_offset > max_score {
+                                max_score = buf_offset;
+                                max_cls_id = k;
+                            }
+                            // offset += grid_len as usize;
+                        }
+
+                        // compute box
+                        if max_score > score_thres_i8 {
+                            // let mut offset = (m * grid_w + n) as usize ;
+                            let mut before_dfl: Vec<f32> = Vec::new();
+                            for k in 0..(dfl_len * 4) {
+                                let box_tensor = unsafe {
+                                    *(outputs[box_idx]
+                                        .buf
+                                        .wrapping_add(offset + grid_len * k as usize)
+                                        as *mut i8)
+                                };
+                                let deqnt = (box_tensor as f32
+                                    - self.output_attrs[box_idx].zp as f32)
+                                    * self.output_attrs[box_idx].scale as f32;
+                                before_dfl.push(deqnt);
+                            }
+                            let draw_box = compute_dfl(before_dfl, dfl_len as usize);
+
+                            let x1 = (-draw_box[0] + n as f32 + 0.5) * stride as f32;
+                            let y1 = (-draw_box[1] + m as f32 + 0.5) * stride as f32;
+                            let x2 = (draw_box[2] + n as f32 + 0.5) * stride as f32;
+                            let y2 = (draw_box[3] + m as f32 + 0.5) * stride as f32;
+                            let w = x2 - x1;
+                            let h = y2 - y1;
+
+                            filterBoxes.push(x1);
+                            filterBoxes.push(y1);
+                            filterBoxes.push(w);
+                            filterBoxes.push(h);
+
+                            let deqnt = (max_score as f32 - self.output_attrs[score_idx].zp as f32)
+                                * self.output_attrs[score_idx].scale as f32;
+
+                            obj_probs.push(deqnt);
+                            class_id.push(max_cls_id);
+                            // valid_count += 1;
+                        }
+                    }
+                }
+            } else {
+                // process_fp32
+                let grid_len = (grid_h * grid_w) as usize;
+                for m in 0..grid_h {
+                    for n in 0..grid_w {
+                        let offset = (m * grid_w + n) as usize;
+                        let mut max_cls_id = -1;
+
+                        // 通过 score sum 起到快速过滤的作用
+                        if !score_sum.is_null() {
+                            let buf_offset =
+                                unsafe { *(score_sum.wrapping_add(offset) as *mut i8) };
+                            if (buf_offset as f32) < BOX_THRESH {
+                                continue;
+                            }
+                        }
+
+                        let mut max_score = 0.0f32;
+                        for k in 0..OBJ_CLASS_NUM {
+                            let buf_offset = unsafe {
+                                *(outputs[score_idx]
+                                    .buf
+                                    .wrapping_add(offset + grid_len * k as usize)
+                                    as *mut f32)
+                            };
+                            if buf_offset > BOX_THRESH && buf_offset > max_score {
+                                max_score = buf_offset;
+                                max_cls_id = k;
+                            }
+                            // offset += grid_len as usize;
+                        }
+
+                        // compute box
+                        if max_score > BOX_THRESH {
+                            // let mut offset = (m * grid_w + n) as usize ;
+                            let mut before_dfl: Vec<f32> = Vec::new();
+                            for k in 0..(dfl_len * 4) {
+                                let box_tensor = unsafe {
+                                    *(outputs[box_idx]
+                                        .buf
+                                        .wrapping_add(offset + grid_len * k as usize)
+                                        as *mut f32)
+                                };
+                                let deqnt = (box_tensor - self.output_attrs[box_idx].zp as f32)
+                                    * self.output_attrs[box_idx].scale as f32;
+                                before_dfl.push(deqnt);
+                            }
+                            let draw_box = compute_dfl(before_dfl, dfl_len as usize);
+
+                            let x1 = (-draw_box[0] + n as f32 + 0.5) * stride as f32;
+                            let y1 = (-draw_box[1] + m as f32 + 0.5) * stride as f32;
+                            let x2 = (draw_box[2] + n as f32 + 0.5) * stride as f32;
+                            let y2 = (draw_box[3] + m as f32 + 0.5) * stride as f32;
+                            let w = x2 - x1;
+                            let h = y2 - y1;
+
+                            filterBoxes.push(x1);
+                            filterBoxes.push(y1);
+                            filterBoxes.push(w);
+                            filterBoxes.push(h);
+
+                            obj_probs.push(max_score);
+                            class_id.push(max_cls_id);
+                            // valid_count += 1;
+                        }
+                    }
+                }
+            }
         }
+
+        if obj_probs.len() == 0 {
+            info!("No object detected");
+            return Ok(());
+        }
+
+        let mut indices = (0..obj_probs.len()).collect::<Vec<_>>();
+
+        indices.sort_by(|&a,&b| obj_probs[b].total_cmp(&obj_probs[a]));
+        obj_probs.sort_by(|&a,&b| b.total_cmp(&a));
+
+        let class_set: HashSet<i32> = HashSet::from_iter(class_id.into_iter());
+
+        info!("class ids are: {class_set:?}");
 
         info!("Rknn running: context is now {}", self.rknn_ctx);
         let _ = unsafe {
@@ -326,4 +500,34 @@ impl RknnAppContext {
         };
         Ok(())
     }
+}
+
+fn qnt_f32_to_affine(threshold: f32, score_zp: i32, score_scale: f32) -> i8 {
+    let dst_val = (threshold / score_zp as f32) + score_scale as f32;
+    let res = match (dst_val <= -128.0, dst_val >= 127.0) {
+        (true, _) => -128i8,
+        (false, true) => 127i8,
+        (false, false) => dst_val as i8,
+    };
+    res
+}
+
+fn compute_dfl(tensor: Vec<f32>, dfl_len: usize) -> [f32; 4] {
+    let mut draw_box = [0.0f32; 4];
+    for b in 0..4 as usize {
+        let mut exp_t: Vec<f32> = Vec::new();
+        let mut exp_sum = 0.0f32;
+        let mut acc_sum = 0.0f32;
+        for i in 0..dfl_len {
+            let expon = tensor[i + b * dfl_len].exp();
+            exp_t.push(expon);
+            exp_sum += expon;
+        }
+
+        for i in 0..dfl_len {
+            acc_sum += exp_t[i] / exp_sum * (i as f32);
+        }
+        draw_box[b] = acc_sum;
+    }
+    draw_box
 }
