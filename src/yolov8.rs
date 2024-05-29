@@ -1,5 +1,9 @@
 use std::{
-    collections::HashSet, env, ffi::CString, fs::File, io::{self, Error, ErrorKind, Read, Result}, mem::size_of, path::Path, ptr::null_mut
+    collections::HashSet,
+    fs::File,
+    io::{self, Error, ErrorKind, Read, Result},
+    mem::size_of,
+    ptr::null_mut,
 };
 
 use crate::{
@@ -7,7 +11,7 @@ use crate::{
     _rknn_query_cmd_RKNN_QUERY_OUTPUT_ATTR, _rknn_tensor_format_RKNN_TENSOR_NCHW,
     _rknn_tensor_format_RKNN_TENSOR_NHWC, _rknn_tensor_qnt_type_RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC,
     _rknn_tensor_type_RKNN_TENSOR_INT8, _rknn_tensor_type_RKNN_TENSOR_UINT8, dump_tensor_attr,
-    od::{ObjectDetectList, BOX_THRESH, NMS_THRESH, OBJ_CLASS_NUM},
+    od::{BOX_THRESH, OBJ_CLASS_NUM},
     rknn_context, rknn_init, rknn_input, rknn_input_output_num, rknn_inputs_set, rknn_output,
     rknn_outputs_get, rknn_outputs_release, rknn_query, rknn_run, rknn_tensor_attr,
 };
@@ -229,7 +233,7 @@ impl RknnAppContext {
         Ok(())
     }
 
-    pub fn inference_model(&self, img_path: &str) -> Result<()> {
+    pub fn inference_model(&self, img_path: &str) -> Result<HashSet<i32>> {
         let reader = ImageReader::open(img_path)?;
         let img = match reader.decode() {
             Ok(m) => m,
@@ -482,23 +486,21 @@ impl RknnAppContext {
 
         if obj_probs.len() == 0 {
             info!("No object detected");
-            return Ok(());
+            return Ok(HashSet::new());
         }
 
-        let mut indices = (0..obj_probs.len()).collect::<Vec<_>>();
+        // let mut indices = (0..obj_probs.len()).collect::<Vec<_>>();
 
-        indices.sort_by(|&a,&b| obj_probs[b].total_cmp(&obj_probs[a]));
-        obj_probs.sort_by(|&a,&b| b.total_cmp(&a));
+        // indices.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
+        // obj_probs.sort_by(|&a, &b| b.total_cmp(&a));
 
         let class_set: HashSet<i32> = HashSet::from_iter(class_id.into_iter());
 
-        info!("class ids are: {class_set:?}");
-
-        info!("Rknn running: context is now {}", self.rknn_ctx);
+        // info!("Rknn running: context is now {}", self.rknn_ctx);
         let _ = unsafe {
             rknn_outputs_release(self.rknn_ctx, self.io_num.n_output, outputs.as_mut_ptr())
         };
-        Ok(())
+        Ok(class_set)
     }
 }
 

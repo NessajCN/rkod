@@ -1,4 +1,5 @@
 use rkod::{read_lines, yolov8::RknnAppContext};
+use tracing::{error, info};
 use std::io;
 // use tracing_subscriber::fmt::time::ChronoLocal;
 
@@ -14,6 +15,12 @@ fn main() -> io::Result<()> {
     let labels = lines.flatten().collect::<Vec<String>>();
     let mut app_ctx = RknnAppContext::new();
     app_ctx.init_model("model/yolov8.rknn")?;
-    app_ctx.inference_model("model/bus.jpg")?;
+    let class_set = app_ctx.inference_model("model/bus.jpg")?;
+    if class_set.contains(&-1) {
+        error!("class id error");
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "class id error"));
+    }
+    let class_names = class_set.into_iter().map(|i| labels[i as usize].clone()).collect::<Vec<String>>();
+    info!("Image containing class: {class_names:?}");
     Ok(())
 }
