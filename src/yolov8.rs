@@ -501,7 +501,7 @@ impl RknnAppContext {
             rknn_outputs_release(self.rknn_ctx, self.io_num.n_output, outputs.as_mut_ptr())
         };
 
-        let buf_test = unsafe { *(outputs[7].buf as *mut i8) };
+        let buf_test = unsafe { *(outputs[7].buf.wrapping_add(7) as *mut i8) };
         info!("Rknn output released, buf_test: {buf_test}");
         Ok(class_set)
     }
