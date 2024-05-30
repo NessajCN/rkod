@@ -17,7 +17,7 @@ use crate::{
 };
 use image::io::Reader as ImageReader;
 use libc::c_void;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct RknnAppContext {
@@ -485,7 +485,7 @@ impl RknnAppContext {
         }
 
         if obj_probs.len() == 0 {
-            info!("No object detected");
+            warn!("No object detected");
             return Ok(HashSet::new());
         }
 
@@ -501,20 +501,19 @@ impl RknnAppContext {
             rknn_outputs_release(self.rknn_ctx, self.io_num.n_output, outputs.as_mut_ptr())
         };
 
-        let buf_test = unsafe { *(outputs[7].buf.wrapping_add(7) as *mut i8) };
-        info!("Rknn output released, buf_test: {buf_test}");
+        // let buf_test = unsafe { *(outputs[7].buf.wrapping_add(7) as *mut i8) };
+        // info!("Rknn output released, buf_test: {buf_test}");
         Ok(class_set)
     }
 }
 
 fn qnt_f32_to_affine(threshold: f32, score_zp: i32, score_scale: f32) -> i8 {
     let dst_val = (threshold / score_zp as f32) + score_scale as f32;
-    let res = match (dst_val <= -128.0, dst_val >= 127.0) {
+    match (dst_val <= -128.0, dst_val >= 127.0) {
         (true, _) => -128i8,
         (false, true) => 127i8,
         (false, false) => dst_val as i8,
-    };
-    res
+    }
 }
 
 fn compute_dfl(tensor: Vec<f32>, dfl_len: usize) -> [f32; 4] {

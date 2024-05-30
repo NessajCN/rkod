@@ -13,17 +13,7 @@ fn main() {
         "cargo:rustc-link-search=native={}",
         Path::new(&dir).join("libs/librknn_api/aarch64").display()
     );
-    // println!(
-    //     "cargo:rustc-link-search=native={}",
-    //     Path::new(&dir).join("libs/librga/Linux/aarch64").display()
-    // );
-    // println!(
-    //     "cargo:rustc-link-search=native={}",
-    //     Path::new(&dir).join("libs/jpeg_turbo/Linux/aarch64").display()
-    // );
     println!("cargo:rustc-link-lib=dylib=rknnrt");
-    // println!("cargo:rustc-link-lib=static=turbojpeg");
-    // println!("cargo:rustc-link-lib=rga");
     // cc::Build::new()
     // .files([
     // "src/utils/file_utils.c",

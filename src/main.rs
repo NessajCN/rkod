@@ -16,7 +16,7 @@ fn main() -> io::Result<()> {
     let mut app_ctx = RknnAppContext::new();
     app_ctx.init_model("model/yolov8.rknn")?;
     let class_set = app_ctx.inference_model("model/bus.jpg")?;
-    if class_set.contains(&-1) {
+    if class_set.contains(&-1) || class_set.is_empty() {
         error!("class id error");
         return Err(io::Error::new(io::ErrorKind::InvalidData, "class id error"));
     }
