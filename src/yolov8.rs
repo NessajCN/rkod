@@ -368,8 +368,8 @@ impl RknnAppContext {
                                     .wrapping_add(offset + grid_len * k as usize)
                                     as *mut i8)
                             };
-                            info!("buf_offset - {buf_offset} at score_idx - {score_idx}");
                             if buf_offset > score_thres_i8 && buf_offset > max_score {
+                                info!("buf_offset - {buf_offset} at score_idx - {score_idx}");
                                 max_score = buf_offset;
                                 max_cls_id = k;
                             }
@@ -440,8 +440,8 @@ impl RknnAppContext {
                                     .wrapping_add(offset + grid_len * k as usize)
                                     as *mut f32)
                             };
-                            info!("buf_offset - {buf_offset} at score_idx - {score_idx}");
                             if buf_offset > BOX_THRESH && buf_offset > max_score {
+                                info!("buf_offset - {buf_offset} at score_idx - {score_idx}");
                                 max_score = buf_offset;
                                 max_cls_id = k;
                             }
