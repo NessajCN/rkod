@@ -497,10 +497,10 @@ impl RknnAppContext {
         let class_set: HashSet<i32> = HashSet::from_iter(class_id.into_iter());
 
         // info!("Rknn running: context is now {}", self.rknn_ctx);
-        let _ = unsafe {
+        let ret = unsafe {
             rknn_outputs_release(self.rknn_ctx, self.io_num.n_output, outputs.as_mut_ptr())
         };
-        info!("Rknn output released: context is now {}, outputs: {:?}", self.rknn_ctx, outputs[7].buf.is_null());
+        info!("Rknn output release returned: {ret}, outputs: {:?}", outputs[7].buf.is_null());
         Ok(class_set)
     }
 }
