@@ -344,7 +344,6 @@ impl RknnAppContext {
                     self.output_attrs[score_idx].zp,
                     self.output_attrs[score_idx].scale,
                 );
-                info!("score_thres_i8 is {score_thres_i8}");
                 let score_sum_thres_i8 =
                     qnt_f32_to_affine(BOX_THRESH, score_sum_zp, score_sum_scale);
                 for m in 0..grid_h {
@@ -357,6 +356,7 @@ impl RknnAppContext {
                             let buf_offset =
                                 unsafe { *(score_sum.wrapping_add(offset) as *mut i8) };
                             if buf_offset < score_sum_thres_i8 {
+                                info!("continued buff_offset: {buf_offset}, offset: {offset}");
                                 continue;
                             }
                         }
@@ -370,7 +370,6 @@ impl RknnAppContext {
                                     as *mut i8)
                             };
                             if buf_offset > score_thres_i8 && buf_offset > max_score {
-                                info!("buf_offset - {buf_offset} at score_idx - {score_idx}");
                                 max_score = buf_offset;
                                 max_cls_id = k;
                             }
@@ -442,7 +441,6 @@ impl RknnAppContext {
                                     as *mut f32)
                             };
                             if buf_offset > BOX_THRESH && buf_offset > max_score {
-                                info!("buf_offset - {buf_offset} at score_idx - {score_idx}");
                                 max_score = buf_offset;
                                 max_cls_id = k;
                             }
