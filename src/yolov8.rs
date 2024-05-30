@@ -162,7 +162,7 @@ impl RknnAppContext {
         }
 
         // Get Model Output Info
-        info!("Output tensor");
+        // info!("Output tensor");
         let mut output_attrs: Vec<rknn_tensor_attr> = Vec::new();
         for i in 0..io_num.n_output {
             let mut attr = rknn_tensor_attr {
@@ -198,7 +198,7 @@ impl RknnAppContext {
                     "Failed to query rknn",
                 ));
             }
-            dump_tensor_attr(&attr);
+            // dump_tensor_attr(&attr);
             output_attrs.push(attr);
         }
         // Set to context
@@ -368,6 +368,7 @@ impl RknnAppContext {
                                     .wrapping_add(offset + grid_len * k as usize)
                                     as *mut i8)
                             };
+                            info!("buf_offset - {buf_offset} at score_idx - {score_idx}");
                             if buf_offset > score_thres_i8 && buf_offset > max_score {
                                 max_score = buf_offset;
                                 max_cls_id = k;
@@ -439,6 +440,7 @@ impl RknnAppContext {
                                     .wrapping_add(offset + grid_len * k as usize)
                                     as *mut f32)
                             };
+                            info!("buf_offset - {buf_offset} at score_idx - {score_idx}");
                             if buf_offset > BOX_THRESH && buf_offset > max_score {
                                 max_score = buf_offset;
                                 max_cls_id = k;
