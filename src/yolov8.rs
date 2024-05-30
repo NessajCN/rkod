@@ -356,7 +356,6 @@ impl RknnAppContext {
                             let buf_offset =
                                 unsafe { *(score_sum.wrapping_add(offset) as *mut i8) };
                             if buf_offset < score_sum_thres_i8 {
-                                info!("continued buff_offset: {buf_offset}, offset: {offset}");
                                 continue;
                             }
                         }
@@ -501,6 +500,7 @@ impl RknnAppContext {
         let _ = unsafe {
             rknn_outputs_release(self.rknn_ctx, self.io_num.n_output, outputs.as_mut_ptr())
         };
+        info!("Rknn output released: context is now {}, outputs: {outputs:?}", self.rknn_ctx);
         Ok(class_set)
     }
 }
