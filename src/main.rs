@@ -34,7 +34,8 @@ fn main() -> io::Result<()> {
         error!("class id error");
         return Err(io::Error::new(io::ErrorKind::InvalidData, "class id error"));
     }
-    let class_names = class_set.into_iter().map(|i| labels[i as usize].clone()).collect::<Vec<String>>();
-    info!("Image containing class: {class_names:?}");
+    info!("Image containing class: {class_set:?}");
+    // let class_names = class_set.into_iter().map(|i| labels[i as usize].clone()).collect::<Vec<String>>();
+    // info!("Image containing class: {class_names:?}");
     Ok(())
 }
