@@ -25,7 +25,7 @@ fn main() -> io::Result<()> {
         .init();
 
     let args = Args::parse();
-    let lines = read_lines("model/coco_80_labels_list.txt")?;
+    let lines = read_lines("model/safety_hat.txt")?;
     let labels = lines.flatten().collect::<Vec<String>>();
     let mut app_ctx = RknnAppContext::new();
     app_ctx.init_model(&args.model)?;
