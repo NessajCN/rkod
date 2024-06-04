@@ -314,6 +314,8 @@ impl RknnAppContext {
         // Post process
         // let mut valid_count = 0;
 
+        info!("Post process begins...");
+
         let mut filterBoxes: Vec<f32> = Vec::new();
         let mut obj_probs: Vec<f32> = Vec::new();
         let mut class_id: Vec<i32> = Vec::new();
