@@ -496,6 +496,8 @@ impl RknnAppContext {
             }
         }
 
+        info!("Post process ends...");
+
         if obj_probs.len() == 0 {
             warn!("No object detected");
             return Ok(HashSet::new());
