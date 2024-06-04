@@ -295,6 +295,8 @@ impl RknnAppContext {
             outputs.push(output);
         }
 
+        info!("Generating outputs...");
+
         let ret = unsafe {
             rknn_outputs_get(
                 self.rknn_ctx,
