@@ -85,7 +85,7 @@ impl RknnAppContext {
 
         let ret = unsafe { rknn_init(&mut ctx, model, model_len as u32, 0, null_mut()) };
 
-        info!("model_buf: {model:?}");
+        info!("model_buf: {model_buf:?}");
 
         if ret < 0 {
             error!("Failed to init rknn. Error code: {ret}");
