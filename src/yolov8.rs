@@ -348,7 +348,6 @@ impl RknnAppContext {
             let grid_h = self.output_attrs[box_idx].dims[2];
             let grid_w = self.output_attrs[box_idx].dims[3];
             let stride = self.model_height as u32 / grid_h;
-            info!("looping in: i: {i}, grid_h: {grid_h}, grid_w: {grid_w}");
 
             if self.is_quant {
                 // process_i8
@@ -386,7 +385,7 @@ impl RknnAppContext {
                                 max_score = buf_offset;
                                 max_cls_id = k;
                             }
-                            // offset += grid_len as usize;
+                            info!("looping in: i: {i}, m: {m}, n: {n}, k:{k}");
                         }
 
                         // compute box
