@@ -245,7 +245,7 @@ impl RknnAppContext {
             }
         };
         let img = img
-            .resize(
+            .resize_to_fill(
                 self.model_width as u32,
                 self.model_height as u32,
                 image::imageops::FilterType::Nearest,
