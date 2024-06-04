@@ -249,9 +249,9 @@ impl RknnAppContext {
                 self.model_width as u32,
                 self.model_height as u32,
                 image::imageops::FilterType::Nearest,
-            )
-            .as_bytes()
-            .to_vec();
+            );
+
+        let img_buf = img.as_bytes().as_ptr() as *mut c_void;
         let mut inputs: Vec<rknn_input> = Vec::new();
         for n in 0..self.io_num.n_input {
             let input = rknn_input {
@@ -261,7 +261,7 @@ impl RknnAppContext {
                 fmt: _rknn_tensor_format_RKNN_TENSOR_NHWC,
                 // pass_through - if 1 directly pass image buff to rknn node else if 0 do conversion first.
                 pass_through: 0,
-                buf: img.as_ptr() as *mut c_void,
+                buf: img_buf,
             };
             inputs.push(input);
         }
