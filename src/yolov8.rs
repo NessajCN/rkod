@@ -248,7 +248,7 @@ impl RknnAppContext {
             .resize(
                 self.model_width as u32,
                 self.model_height as u32,
-                image::imageops::FilterType::Gaussian,
+                image::imageops::FilterType::Triangle,
             )
             .as_bytes()
             .to_vec();
