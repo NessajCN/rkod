@@ -81,19 +81,11 @@ impl RknnAppContext {
         let mut model_buf: Vec<u8> = Vec::new();
 
         let model_len = model.read_to_end(&mut model_buf)?;
-        // let model = model_buf.as_mut_ptr() as *mut c_void;
+        let model = model_buf.as_mut_ptr() as *mut c_void;
 
-        let ret = unsafe {
-            rknn_init(
-                &mut ctx,
-                model_buf.as_mut_ptr() as *mut c_void,
-                model_len as u32,
-                0,
-                null_mut(),
-            )
-        };
+        let ret = unsafe { rknn_init(&mut ctx, model, model_len as u32, 0, null_mut()) };
 
-        info!("model_buff: {model_buf:?}");
+        info!("model_buf: {model:?}");
 
         if ret < 0 {
             error!("Failed to init rknn. Error code: {ret}");
