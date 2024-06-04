@@ -263,7 +263,7 @@ impl RknnAppContext {
             inputs.push(input);
         }
 
-        info!("Setting rknn inputs...");
+        info!("Setting rknn inputs...n_input: {}", self.io_num.n_input);
 
         let ret =
             unsafe { rknn_inputs_set(self.rknn_ctx, self.io_num.n_input, inputs.as_mut_ptr()) };
