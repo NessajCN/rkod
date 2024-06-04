@@ -262,6 +262,9 @@ impl RknnAppContext {
             };
             inputs.push(input);
         }
+
+        info!("Setting rknn inputs...");
+
         let ret =
             unsafe { rknn_inputs_set(self.rknn_ctx, self.io_num.n_input, inputs.as_mut_ptr()) };
 
@@ -272,6 +275,8 @@ impl RknnAppContext {
                 "Failed to set rknn input",
             ));
         }
+
+        info!("Running rknn...");
 
         let ret = unsafe { rknn_run(self.rknn_ctx, null_mut()) };
 
