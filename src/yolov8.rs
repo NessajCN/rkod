@@ -93,6 +93,8 @@ impl RknnAppContext {
             )
         };
 
+        info!("model_buff: {model_buf:?}");
+
         if ret < 0 {
             error!("Failed to init rknn. Error code: {ret}");
             return Err(io::Error::new(
