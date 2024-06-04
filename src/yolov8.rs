@@ -245,11 +245,11 @@ impl RknnAppContext {
             }
         };
         let mut img = img
-            .resize(
-                self.model_width as u32,
-                self.model_height as u32,
-                image::imageops::FilterType::Nearest,
-            )
+            // .resize(
+            //     self.model_width as u32,
+            //     self.model_height as u32,
+            //     image::imageops::FilterType::Nearest,
+            // )
             .as_bytes()
             .to_vec();
         let mut inputs: Vec<rknn_input> = Vec::new();
