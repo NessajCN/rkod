@@ -385,7 +385,7 @@ impl RknnAppContext {
                                 max_score = buf_offset;
                                 max_cls_id = k;
                             }
-                            info!("looping in: i: {i}, m: {m}, n: {n}, k:{k}");
+                            // info!("looping in: i: {i}, m: {m}, n: {n}, k:{k}");
                         }
 
                         // compute box
