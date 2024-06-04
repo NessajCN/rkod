@@ -244,11 +244,11 @@ impl RknnAppContext {
                 return Err(Error::new(ErrorKind::InvalidInput, e.to_string()));
             }
         };
-        let mut img = img
+        let img = img
             .resize(
                 self.model_width as u32,
                 self.model_height as u32,
-                image::imageops::FilterType::Triangle,
+                image::imageops::FilterType::Nearest,
             )
             .as_bytes()
             .to_vec();
@@ -261,7 +261,7 @@ impl RknnAppContext {
                 fmt: _rknn_tensor_format_RKNN_TENSOR_NHWC,
                 // pass_through - if 1 directly pass image buff to rknn node else if 0 do conversion first.
                 pass_through: 0,
-                buf: img.as_mut_ptr() as *mut c_void,
+                buf: img.as_ptr() as *mut c_void,
             };
             inputs.push(input);
         }
