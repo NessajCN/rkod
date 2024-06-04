@@ -333,6 +333,7 @@ impl RknnAppContext {
         let dfl_len = self.output_attrs[0].dims[1] / 4;
         let output_per_branch = self.io_num.n_output / 3;
         for i in 0..3 {
+            info!("looping in: {i}");
             let (score_sum, score_sum_zp, score_sum_scale) = if output_per_branch == 3 {
                 (
                     outputs[i * 3 + 2].buf,
@@ -495,8 +496,6 @@ impl RknnAppContext {
                 }
             }
         }
-
-        info!("Post process ends...");
 
         if obj_probs.len() == 0 {
             warn!("No object detected");
