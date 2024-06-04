@@ -333,7 +333,6 @@ impl RknnAppContext {
         let dfl_len = self.output_attrs[0].dims[1] / 4;
         let output_per_branch = self.io_num.n_output / 3;
         for i in 0..3 {
-            info!("looping in: {i}");
             let (score_sum, score_sum_zp, score_sum_scale) = if output_per_branch == 3 {
                 (
                     outputs[i * 3 + 2].buf,
@@ -351,6 +350,8 @@ impl RknnAppContext {
             let stride = self.model_height as u32 / grid_h;
             if self.is_quant {
                 // process_i8
+                info!("looping in: {i}");
+
                 let grid_len = (grid_h * grid_w) as usize;
                 let score_thres_i8 = qnt_f32_to_affine(
                     BOX_THRESH,
