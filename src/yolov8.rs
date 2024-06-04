@@ -348,6 +348,8 @@ impl RknnAppContext {
             let grid_h = self.output_attrs[box_idx].dims[2];
             let grid_w = self.output_attrs[box_idx].dims[3];
             let stride = self.model_height as u32 / grid_h;
+            info!("looping in: i: {i}, grid_h: {grid_h}, grid_w: {grid_w}");
+
             if self.is_quant {
                 // process_i8
                 let grid_len = (grid_h * grid_w) as usize;
@@ -360,8 +362,6 @@ impl RknnAppContext {
                     qnt_f32_to_affine(BOX_THRESH, score_sum_zp, score_sum_scale);
                 for m in 0..grid_h {
                     for n in 0..grid_w {
-                        info!("looping in: i: {i}, m: {m}, n: {n}");
-
                         let offset = (m * grid_w + n) as usize;
                         let mut max_cls_id = -1;
 
