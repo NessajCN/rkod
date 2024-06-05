@@ -11,7 +11,7 @@ use crate::{
     _rknn_query_cmd_RKNN_QUERY_OUTPUT_ATTR, _rknn_tensor_format_RKNN_TENSOR_NCHW,
     _rknn_tensor_format_RKNN_TENSOR_NHWC, _rknn_tensor_qnt_type_RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC,
     _rknn_tensor_type_RKNN_TENSOR_INT8, _rknn_tensor_type_RKNN_TENSOR_UINT8, dump_tensor_attr,
-    od::{BOX_THRESH, NMS_THRESH, OBJ_CLASS_NUM},
+    od::{ObjectDetectList, BOX_THRESH, NMS_THRESH, OBJ_CLASS_NUM},
     rknn_context, rknn_init, rknn_input, rknn_input_output_num, rknn_inputs_set, rknn_output,
     rknn_outputs_get, rknn_outputs_release, rknn_query, rknn_run, rknn_tensor_attr,
 };
@@ -236,7 +236,7 @@ impl RknnAppContext {
         Ok(())
     }
 
-    pub fn inference_model(&self, img_path: &str) -> Result<HashSet<i32>> {
+    pub fn inference_model(&self, img_path: &str) -> Result<ObjectDetectList> {
         let reader = ImageReader::open(img_path)?;
         let img = match reader.decode() {
             Ok(m) => m,
@@ -356,7 +356,6 @@ impl RknnAppContext {
                     self.output_attrs[score_idx].zp,
                     self.output_attrs[score_idx].scale,
                 );
-                info!("score_thres_i8: {score_thres_i8}, i: {i}");
                 let score_sum_thres_i8 =
                     qnt_f32_to_affine(BOX_THRESH, score_sum_zp, score_sum_scale);
                 for m in 0..grid_h {
@@ -503,29 +502,38 @@ impl RknnAppContext {
 
         if obj_probs.len() == 0 {
             warn!("No object detected");
-            return Ok(HashSet::new());
+            return Ok(ObjectDetectList::default());
         }
 
         let class_set: HashSet<i32> = HashSet::from_iter(class_id.clone().into_iter());
 
-        info!("obj_probs: {obj_probs:?}");
-        info!("class_id: {class_id:?}");
+        // info!("obj_probs: {obj_probs:?}");
+        // info!("class_id: {class_id:?}");
+
+        let mut order = (0..obj_probs.len()).collect::<Vec<_>>();
+        order.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
+
         // nms
 
-        // let mut order = (0..obj_probs.len()).collect::<Vec<_>>();
-        // order.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
-        // obj_probs.sort_by(|&a, &b| b.total_cmp(&a));
-        // for &c in class_set.iter() {
-        //     nms(&filter_boxes, &class_id, &mut order, c);
-        // }
+        for &c in class_set.iter() {
+            nms(&filter_boxes, &class_id, &mut order, c);
+        }
 
         // nms end
+
+        let od_result = match ObjectDetectList::new(&class_id, &obj_probs, &order) {
+            Ok(r) => r,
+            Err(e) => {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, e));
+            }
+        };
+
         // info!("Rknn running: context is now {}", self.rknn_ctx);
         let _ = unsafe {
             rknn_outputs_release(self.rknn_ctx, self.io_num.n_output, outputs.as_mut_ptr())
         };
 
-        Ok(class_set)
+        Ok(od_result)
     }
 }
 
@@ -558,7 +566,12 @@ fn compute_dfl(tensor: Vec<f32>, dfl_len: usize) -> [f32; 4] {
     draw_box
 }
 
-pub fn nms(filter_boxes: &Vec<[f32; 4]>, class_id: &Vec<i32>, order: &mut Vec<usize>, filter_id: i32) {
+pub fn nms(
+    filter_boxes: &Vec<[f32; 4]>,
+    class_id: &Vec<i32>,
+    order: &mut Vec<usize>,
+    filter_id: i32,
+) {
     for i in 0..class_id.len() {
         if (order[i] == 0xffff) || (class_id[i] != filter_id) {
             continue;
