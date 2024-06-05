@@ -356,6 +356,7 @@ impl RknnAppContext {
                     self.output_attrs[score_idx].zp,
                     self.output_attrs[score_idx].scale,
                 );
+                info!("score_thres_i8: {score_thres_i8}, i: {i}");
                 let score_sum_thres_i8 =
                     qnt_f32_to_affine(BOX_THRESH, score_sum_zp, score_sum_scale);
                 for m in 0..grid_h {
