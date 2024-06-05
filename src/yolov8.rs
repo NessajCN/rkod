@@ -505,27 +505,16 @@ impl RknnAppContext {
             return Ok(HashSet::new());
         }
 
-        // nms
-
-        let mut order = (0..obj_probs.len()).collect::<Vec<_>>();
-
-        info!("Order init: {order:?}");
-        info!("Object probs init: {obj_probs:?}");
-        info!("class id init: {class_id:?}");
-
-        order.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
-        obj_probs.sort_by(|&a, &b| b.total_cmp(&a));
-
         let class_set: HashSet<i32> = HashSet::from_iter(class_id.clone().into_iter());
 
-        info!("Order sorted: {order:?}");
-        info!("Object probs sorted: {obj_probs:?}");
+        // nms
 
-        for &c in class_set.iter() {
-            nms(&filter_boxes, &class_id, &mut order, c);
-        }
-
-        info!("Order nmsed: {order:?}");
+        // let mut order = (0..obj_probs.len()).collect::<Vec<_>>();
+        // order.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
+        // obj_probs.sort_by(|&a, &b| b.total_cmp(&a));
+        // for &c in class_set.iter() {
+        //     nms(&filter_boxes, &class_id, &mut order, c);
+        // }
 
         // nms end
         // info!("Rknn running: context is now {}", self.rknn_ctx);
@@ -566,7 +555,7 @@ fn compute_dfl(tensor: Vec<f32>, dfl_len: usize) -> [f32; 4] {
     draw_box
 }
 
-fn nms(filter_boxes: &Vec<[f32; 4]>, class_id: &Vec<i32>, order: &mut Vec<usize>, filter_id: i32) {
+pub fn nms(filter_boxes: &Vec<[f32; 4]>, class_id: &Vec<i32>, order: &mut Vec<usize>, filter_id: i32) {
     for i in 0..class_id.len() {
         if (order[i] == 0xffff) || (class_id[i] != filter_id) {
             continue;
