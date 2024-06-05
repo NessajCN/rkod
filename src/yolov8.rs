@@ -11,7 +11,7 @@ use crate::{
     _rknn_query_cmd_RKNN_QUERY_OUTPUT_ATTR, _rknn_tensor_format_RKNN_TENSOR_NCHW,
     _rknn_tensor_format_RKNN_TENSOR_NHWC, _rknn_tensor_qnt_type_RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC,
     _rknn_tensor_type_RKNN_TENSOR_INT8, _rknn_tensor_type_RKNN_TENSOR_UINT8, dump_tensor_attr,
-    od::{BOX_THRESH, OBJ_CLASS_NUM},
+    od::{BOX_THRESH, NMS_THRESH, OBJ_CLASS_NUM},
     rknn_context, rknn_init, rknn_input, rknn_input_output_num, rknn_inputs_set, rknn_output,
     rknn_outputs_get, rknn_outputs_release, rknn_query, rknn_run, rknn_tensor_attr,
 };
@@ -244,12 +244,11 @@ impl RknnAppContext {
                 return Err(Error::new(ErrorKind::InvalidInput, e.to_string()));
             }
         };
-        let img = img
-            .resize_to_fill(
-                self.model_width as u32,
-                self.model_height as u32,
-                image::imageops::FilterType::Nearest,
-            );
+        let img = img.resize_to_fill(
+            self.model_width as u32,
+            self.model_height as u32,
+            image::imageops::FilterType::Nearest,
+        );
 
         let img_buf = img.as_bytes().as_ptr() as *mut c_void;
         let mut inputs: Vec<rknn_input> = Vec::new();
@@ -326,7 +325,7 @@ impl RknnAppContext {
 
         info!("Post process begins...");
 
-        let mut filterBoxes: Vec<f32> = Vec::new();
+        let mut filter_boxes: Vec<[f32; 4]> = Vec::new();
         let mut obj_probs: Vec<f32> = Vec::new();
         let mut class_id: Vec<i32> = Vec::new();
 
@@ -410,13 +409,15 @@ impl RknnAppContext {
                             let y1 = (-draw_box[1] + m as f32 + 0.5) * stride as f32;
                             let x2 = (draw_box[2] + n as f32 + 0.5) * stride as f32;
                             let y2 = (draw_box[3] + m as f32 + 0.5) * stride as f32;
-                            let w = x2 - x1;
-                            let h = y2 - y1;
+                            // let w = x2 - x1;
+                            // let h = y2 - y1;
 
-                            filterBoxes.push(x1);
-                            filterBoxes.push(y1);
-                            filterBoxes.push(w);
-                            filterBoxes.push(h);
+                            filter_boxes.push([x1, y1, x2, y2]);
+
+                            // filter_boxes.push(x1);
+                            // filter_boxes.push(y1);
+                            // filter_boxes.push(w);
+                            // filter_boxes.push(h);
 
                             let deqnt = (max_score as f32 - self.output_attrs[score_idx].zp as f32)
                                 * self.output_attrs[score_idx].scale as f32;
@@ -480,13 +481,15 @@ impl RknnAppContext {
                             let y1 = (-draw_box[1] + m as f32 + 0.5) * stride as f32;
                             let x2 = (draw_box[2] + n as f32 + 0.5) * stride as f32;
                             let y2 = (draw_box[3] + m as f32 + 0.5) * stride as f32;
-                            let w = x2 - x1;
-                            let h = y2 - y1;
+                            // let w = x2 - x1;
+                            // let h = y2 - y1;
 
-                            filterBoxes.push(x1);
-                            filterBoxes.push(y1);
-                            filterBoxes.push(w);
-                            filterBoxes.push(h);
+                            filter_boxes.push([x1, y1, x2, y2]);
+
+                            // filter_boxes.push(x1);
+                            // filter_boxes.push(y1);
+                            // filter_boxes.push(w);
+                            // filter_boxes.push(h);
 
                             obj_probs.push(max_score);
                             class_id.push(max_cls_id);
@@ -502,20 +505,25 @@ impl RknnAppContext {
             return Ok(HashSet::new());
         }
 
-        // let mut indices = (0..obj_probs.len()).collect::<Vec<_>>();
+        // nms
 
-        // indices.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
-        // obj_probs.sort_by(|&a, &b| b.total_cmp(&a));
+        let mut order = (0..obj_probs.len()).collect::<Vec<_>>();
 
-        let class_set: HashSet<i32> = HashSet::from_iter(class_id.into_iter());
+        order.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
+        obj_probs.sort_by(|&a, &b| b.total_cmp(&a));
 
+        let class_set: HashSet<i32> = HashSet::from_iter(class_id.clone().into_iter());
+
+        for &c in class_set.iter() {
+            nms(&filter_boxes, &class_id, &mut order, c);
+        }
+
+        // nms end
         // info!("Rknn running: context is now {}", self.rknn_ctx);
         let _ = unsafe {
             rknn_outputs_release(self.rknn_ctx, self.io_num.n_output, outputs.as_mut_ptr())
         };
 
-        // let buf_test = unsafe { *(outputs[7].buf.wrapping_add(7) as *mut i8) };
-        // info!("Rknn output released, buf_test: {buf_test}");
         Ok(class_set)
     }
 }
@@ -547,4 +555,61 @@ fn compute_dfl(tensor: Vec<f32>, dfl_len: usize) -> [f32; 4] {
         draw_box[b] = acc_sum;
     }
     draw_box
+}
+
+fn nms(filter_boxes: &Vec<[f32; 4]>, class_id: &Vec<i32>, order: &mut Vec<usize>, filter_id: i32) {
+    for i in 0..class_id.len() {
+        if (order[i] == 0xff) || (class_id[i] != filter_id) {
+            continue;
+        }
+        let n = order[i];
+        for j in (i + 1)..class_id.len() {
+            let m = order[j];
+            if m == 0xff || class_id[i] != filter_id {
+                continue;
+            }
+            let iou = cal_overlap([
+                filter_boxes[n][0],
+                filter_boxes[n][1],
+                filter_boxes[n][2],
+                filter_boxes[n][3],
+                filter_boxes[m][0],
+                filter_boxes[m][1],
+                filter_boxes[m][2],
+                filter_boxes[m][3],
+            ]);
+            if iou > NMS_THRESH {
+                order[j] = 0xff;
+            }
+        }
+    }
+}
+
+/// mxy: [xmin0, ymin0, xmax0, ymax0, xmin1, ymin1, xmax1, ymax1]
+fn cal_overlap(mxy: [f32; 8]) -> f32 {
+    let xmax = if mxy[2] >= mxy[6] { mxy[6] } else { mxy[2] };
+    let xmin = if mxy[0] >= mxy[4] { mxy[0] } else { mxy[4] };
+    let ymax = if mxy[3] >= mxy[7] { mxy[7] } else { mxy[3] };
+    let ymin = if mxy[1] >= mxy[5] { mxy[1] } else { mxy[5] };
+    let w = if xmax - xmin + 1. > 0. {
+        xmax - xmin + 1.
+    } else {
+        0.
+    };
+    let h = if ymax - ymin + 1. > 0. {
+        ymax - ymin + 1.
+    } else {
+        0.
+    };
+    let i = w * h;
+    let u = (mxy[2] - mxy[0] + 1.)
+        * (mxy[3] - mxy[1] + 1.)
+        * (mxy[6] - mxy[4] + 1.)
+        * (mxy[7] - mxy[5] + 1.)
+        - i;
+    if u <= 0. {
+        0.
+    } else {
+        i / u
+    }
 }
