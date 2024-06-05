@@ -509,14 +509,20 @@ impl RknnAppContext {
 
         let mut order = (0..obj_probs.len()).collect::<Vec<_>>();
 
+        info!("Order init: {order:?}");
+
         order.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
         obj_probs.sort_by(|&a, &b| b.total_cmp(&a));
 
         let class_set: HashSet<i32> = HashSet::from_iter(class_id.clone().into_iter());
 
+        info!("Order sorted: {order:?}");
+
         for &c in class_set.iter() {
             nms(&filter_boxes, &class_id, &mut order, c);
         }
+
+        info!("Order nmsed: {order:?}");
 
         // nms end
         // info!("Rknn running: context is now {}", self.rknn_ctx);
