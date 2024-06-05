@@ -507,6 +507,7 @@ impl RknnAppContext {
 
         let class_set: HashSet<i32> = HashSet::from_iter(class_id.clone().into_iter());
 
+        info!("obj_probs: {obj_probs:?}");
         // nms
 
         // let mut order = (0..obj_probs.len()).collect::<Vec<_>>();
