@@ -27,5 +27,5 @@ Move `yolov8.rknn` in `rkod/model`
 
 - Run it with
 ```bash
-cargo r
+cargo run -m <model/path> -i <image/path>
 ```
