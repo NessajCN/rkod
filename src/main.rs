@@ -1,19 +1,24 @@
+extern crate ffmpeg_next as ffmpeg;
+
 use clap::Parser;
-use rkod::{read_lines, yolov8::RknnAppContext};
-use std::io;
+use image::io::Reader as ImageReader;
+use rkod::{cv::FrameExtractor, od::RknnAppContext, read_lines};
+use std::io::{self, Error, ErrorKind};
 use tracing::info;
+
+use ffmpeg::{format, media};
 // use tracing_subscriber::fmt::time::ChronoLocal;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
     /// Model to use
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "model/safety_hat.rknn")]
     model: String,
 
-    /// Path to the Image for inference
+    /// Path to the input for inference. Could be image or video.
     #[arg(short, long)]
-    image: String,
+    input: String,
 }
 
 fn main() -> io::Result<()> {
@@ -29,21 +34,56 @@ fn main() -> io::Result<()> {
     let labels = lines.flatten().collect::<Vec<String>>();
     let mut app_ctx = RknnAppContext::new();
     app_ctx.init_model(&args.model)?;
-    // let class_set = app_ctx.inference_model(&args.image)?;
-    // if class_set.contains(&-1) || class_set.is_empty() {
-    //     error!("class id error");
-    //     return Err(io::Error::new(io::ErrorKind::InvalidData, "class id error"));
-    // }
-    // let class_names = class_set.into_iter().map(|i| labels[i as usize].clone()).collect::<Vec<String>>();
-    // info!("Image containing class: {class_names:?}");
 
-    let od_results = app_ctx.inference_model(&args.image)?;
-    let results = od_results
-        .get_results()
-        .into_iter()
-        .map(|(id, prob)| (labels[id as usize].clone(), prob))
-        .collect::<Vec<_>>();
+    if args.input.starts_with("rtsp") {
+        // Init ffmpeg
+        ffmpeg::init()?;
+        let mut ictx = format::input(&args.input)?;
 
-    info!("results: {results:?}");
+        // Print detailed information about the input or output format,
+        // such as duration, bitrate, streams, container, programs, metadata, side data, codec and time base.
+        format::context::input::dump(&ictx, 0, Some(&args.input));
+
+        // Find video stream from input context.
+        let input = ictx
+            .streams()
+            .best(media::Type::Video)
+            .ok_or(ffmpeg::Error::StreamNotFound)?;
+        let video_stream_index = input.index();
+
+        let mut frame_extractor = FrameExtractor::new(&input, [app_ctx.width(), app_ctx.height()])?;
+
+        for (stream, packet) in ictx.packets() {
+            if stream.index() == video_stream_index {
+                frame_extractor.send_packet_to_decoder(&packet)?;
+                frame_extractor.process_frames()?;
+            }
+        }
+        frame_extractor.send_eof_to_decoder()?;
+        frame_extractor.process_frames()?;
+    } else {
+        // Read image raw bytes
+        let reader = ImageReader::open(&args.input)?;
+        let img = match reader.decode() {
+            Ok(m) => m,
+            Err(e) => {
+                return Err(Error::new(ErrorKind::InvalidInput, e.to_string()));
+            }
+        };
+        let img = img.resize_to_fill(
+            app_ctx.width(),
+            app_ctx.height(),
+            image::imageops::FilterType::Nearest,
+        );
+
+        let od_results = app_ctx.inference_model(img.as_bytes())?;
+        let results = od_results
+            .get_results()
+            .into_iter()
+            .map(|(id, prob)| (labels[id as usize].clone(), prob))
+            .collect::<Vec<_>>();
+
+        info!("results: {results:?}");
+    }
     Ok(())
 }
