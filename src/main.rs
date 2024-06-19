@@ -56,11 +56,24 @@ fn main() -> io::Result<()> {
         for (stream, packet) in ictx.packets() {
             if stream.index() == video_stream_index {
                 frame_extractor.send_packet_to_decoder(&packet)?;
-                frame_extractor.process_frames()?;
+                if let Ok(f) = frame_extractor.process_frames(&app_ctx) {
+                    match f {
+                        None => {
+                            info!("No object deteced.")
+                        }
+                        Some(r) => {
+                            let results = r
+                                .into_iter()
+                                .map(|(id, prob)| (labels[id as usize].clone(), prob))
+                                .collect::<Vec<_>>();
+                            info!("Object detected: {results:?}")
+                        }
+                    }
+                };
             }
         }
         frame_extractor.send_eof_to_decoder()?;
-        frame_extractor.process_frames()?;
+        frame_extractor.process_frames(&app_ctx)?;
     } else {
         // Read image raw bytes
         let reader = ImageReader::open(&args.input)?;

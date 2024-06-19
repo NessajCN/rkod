@@ -587,7 +587,10 @@ impl RknnAppContext {
 
         if obj_probs.len() == 0 {
             warn!("No object detected");
-            return Ok(ObjectDetectList::default());
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "No object detected",
+            ));
         }
 
         let class_set: HashSet<i32> = HashSet::from_iter(class_id.clone().into_iter());

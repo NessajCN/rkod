@@ -1,17 +1,18 @@
 extern crate ffmpeg_next as ffmpeg;
 
-use std::io::Result;
+use std::io::{self, Result};
 use std::path::Path;
 
 use ffmpeg::format::{input, stream, Pixel};
 use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context, flag::Flags};
 use ffmpeg::util::frame::video::Video;
-use ffmpeg::{decoder, frame, picture, Packet, Rational};
+use ffmpeg::{decoder, frame, picture, Packet};
+
+use crate::od::RknnAppContext;
 
 pub struct FrameExtractor {
     decoder: decoder::Video,
-    input_time_base: Rational,
     scaler: Context,
 }
 
@@ -32,11 +33,7 @@ impl FrameExtractor {
             Flags::BILINEAR,
         )?;
 
-        Ok(Self {
-            decoder,
-            input_time_base: ist.time_base(),
-            scaler,
-        })
+        Ok(Self { decoder, scaler })
     }
 
     pub fn send_packet_to_decoder(&mut self, packet: &Packet) -> Result<()> {
@@ -49,7 +46,7 @@ impl FrameExtractor {
         Ok(())
     }
 
-    pub fn process_frames(&mut self) -> Result<()> {
+    pub fn process_frames(&mut self, app_ctx: &RknnAppContext) -> Result<Option<Vec<(i32, f32)>>> {
         let mut frame = frame::Video::empty();
         while self.decoder.receive_frame(&mut frame).is_ok() {
             let timestamp = frame.timestamp();
@@ -59,18 +56,31 @@ impl FrameExtractor {
             let mut rgb_frame = Video::empty();
             self.scaler.run(&frame, &mut rgb_frame)?;
 
+            let f = rgb_frame.data(0);
+
+            let result = match app_ctx.inference_model(f) {
+                Ok(r) => {
+                    let od_result = r.get_results().into_iter().collect::<Vec<_>>();
+                    Some(od_result)
+                }
+                Err(e) => {
+                    if e.kind() != io::ErrorKind::NotFound {
+                        return Err(e);
+                    }
+                    None
+                }
+            };
+            return Ok(result);
+
             // TODO: Send to `od` module for detection
             // ...
         }
-        Ok(())
+        Ok(None)
     }
 }
 
 /// frame_size: \[width, height\]
-fn extract_frame<P: AsRef<Path> + ?Sized>(
-    input_path: &P,
-    frame_size: [u32; 2],
-) -> Result<()> {
+fn extract_frame<P: AsRef<Path> + ?Sized>(input_path: &P, frame_size: [u32; 2]) -> Result<()> {
     ffmpeg::init()?;
     if let Ok(mut ictx) = input(input_path) {
         let input = ictx
