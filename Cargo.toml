@@ -17,6 +17,6 @@ tracing-subscriber = { version = "0.3", features = [
     "chrono",
 ] }
 
-[build-dependencies]
-cc = "1.0"
-bindgen = "0.65"
+# [build-dependencies]
+# cc = "1.0"
+# bindgen = "0.65"
