@@ -2,7 +2,7 @@
 name = "rkod"
 version = "0.2.0"
 edition = "2021"
-authors = ["NessajCN"]
+authors = ["NessajCN <ksnessaj@hotmail.com>"]
 repository = "https://github.com/NessajCN/rkod"
 
 [dependencies]
