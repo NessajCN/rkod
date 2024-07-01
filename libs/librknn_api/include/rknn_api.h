@@ -86,14 +86,7 @@ extern "C" {
    This flags is generally used when the output data of the NPU is not accessed by the CPU, 
    but is accessed by the GPU or RGA to reduce the time required to flush the cache. 
    !!! Don't use this flags when you call rknn_outputs_get() to get output data.*/
-#define RKNN_FLAG_DISABLE_FLUSH_OUTPUT_MEM_CACHE   0x00008000
-
-/* This flag is used when the model data buffer is allocated by NPU, and can be accessed by NPU directly. */
-#define RKNN_FLAG_MODEL_BUFFER_ZERO_COPY           0x00010000
-
-/* This flag is a memory allocation flag, which is used in rknn_create_mem2() when no context is available. */
-#define RKNN_MEM_FLAG_ALLOC_NO_CONTEXT             0x00020000
-
+#define RKNN_FLAG_DISABLE_FLUSH_OUTPUT_MEM_CACHE    0x00008000
 
 /*
     Error code returned by the RKNN API.
@@ -248,7 +241,6 @@ typedef enum _rknn_core_mask {
     RKNN_NPU_CORE_2 = 4,                                          /* run on NPU core 2. */
     RKNN_NPU_CORE_0_1 = RKNN_NPU_CORE_0 | RKNN_NPU_CORE_1,        /* run on NPU core 0 and core 1. */
     RKNN_NPU_CORE_0_1_2 = RKNN_NPU_CORE_0_1 | RKNN_NPU_CORE_2,    /* run on NPU core 0 and core 1 and core 2. */
-    RKNN_NPU_CORE_ALL = 0xffff,                                   /* auto choice, run on NPU cores depending on platform */
 
     RKNN_NPU_CORE_UNDEFINED,
 } rknn_core_mask;
@@ -444,11 +436,9 @@ typedef struct _rknn_output {
 */
 typedef struct _rknn_init_extend {
     rknn_context ctx;                                    /* rknn context */
-    int32_t      real_model_offset;                      /* real rknn model file offset, only valid when init context with rknn file path and zero-copy model model */
-    uint32_t     real_model_size;                        /* real rknn model file size, only valid when init context with rknn file path and zero-copy model model */
-    int32_t      model_buffer_fd;                        /* the fd of model buffer. */
-    uint32_t     model_buffer_flags;                     /* the flags of model_buffer */
-    uint8_t      reserved[112];                          /* reserved */
+    int32_t      real_model_offset;                      /* real rknn model file offset, only valid when init context with rknn file path */
+    uint32_t     real_model_size;                        /* real rknn model file size, only valid when init context with rknn file path */
+    uint8_t      reserved[120];                          /* reserved */
 } rknn_init_extend;
 
 /*
@@ -562,8 +552,6 @@ int rknn_set_batch_core_num(rknn_context context, int core_num);
     RKNN_NPU_CORE_2: core 2 mode
     RKNN_NPU_CORE_0_1: combine core 0/1 mode
     RKNN_NPU_CORE_0_1_2: combine core 0/1/2 mode
-    RKNN_NPU_CORE_ALL: auto mode, select multiple npu cores to run depending on platform 
-
 
     input:
         rknn_context context        the handle of context.
