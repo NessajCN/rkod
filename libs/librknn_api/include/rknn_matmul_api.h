@@ -26,12 +26,12 @@ typedef struct _rknn_quant_params
   char name[RKNN_MAX_NAME_LEN];
 
   // matmul tensor scale
-  float* scale;
-  int    scale_len;
+  float*  scale;
+  int32_t scale_len;
 
   // matmul tensor zero point
   int32_t* zp;
-  int      zp_len;
+  int32_t  zp_len;
 
 } rknn_quant_params;
 
@@ -110,6 +110,16 @@ typedef struct _rknn_matmul_shape
   int32_t K;
   int32_t N;
 } rknn_matmul_shape;
+
+/*
+  the layout of matmul input/output tensor.
+*/
+typedef enum
+{
+  RKNN_MM_LAYOUT_NORM    = 0,
+  RKNN_MM_LAYOUT_NATIVE  = 1,
+  RKNN_MM_LAYOUT_TP_NORM = 2,
+} rknn_matmul_layout;
 
 /*
   matmul information struct
@@ -431,7 +441,7 @@ int rknn_matmul_set_core_mask(rknn_matmul_ctx context, rknn_core_mask core_mask)
 
 /*  rknn_matmul_set_quant_params
 
-    set quant params.(only support matmul type INT8_X_INT8_TO_INT8, INT8_X_INT8_TO_INT32)
+    set quant params.(only support matmul type RKNN_INT8_MM_INT8_TO_INT8, RKNN_INT8_MM_INT8_TO_INT32)
 
     input:
         rknn_matmul_ctx context     the handle of context.
@@ -443,7 +453,7 @@ int rknn_matmul_set_quant_params(rknn_matmul_ctx context, rknn_quant_params* par
 
 /*  rknn_matmul_get_quant_params
 
-    get per channel quant params.(only support matmul type INT8_X_INT8_TO_INT32)
+    get per channel quant params.(only support matmul type RKNN_INT8_MM_INT8_TO_INT32)
 
     input:
         rknn_matmul_ctx context     the handle of context.
@@ -497,14 +507,15 @@ int rknn_matmul_destroy(rknn_matmul_ctx ctx);
         void* B_input               B normal layout buffer.
         void* B_output              B native layout buffer.
         int   K                     K
-        int   N                     M
+        int   N                     N
         int   subN                  subN
         int   subK                  subK
         rknn_matmul_type type       matmul type
     return:
         int                         error code.
  */
-int rknn_B_normal_layout_to_native_layout(void* B_input, void* B_output, int K, int N, int subN, int subK, rknn_matmul_type type);
+int rknn_B_normal_layout_to_native_layout(void* B_input, void* B_output, int K, int N, int subN, int subK,
+                                          rknn_matmul_type type);
 
 #ifdef __cplusplus
 } // extern "C"
