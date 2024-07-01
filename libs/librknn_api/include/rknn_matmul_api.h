@@ -112,16 +112,6 @@ typedef struct _rknn_matmul_shape
 } rknn_matmul_shape;
 
 /*
-  the layout of matmul input/output tensor.
-*/
-typedef enum
-{
-  RKNN_MM_LAYOUT_NORM    = 0,
-  RKNN_MM_LAYOUT_NATIVE  = 1,
-  RKNN_MM_LAYOUT_TP_NORM = 2,
-} rknn_matmul_layout;
-
-/*
   matmul information struct
  */
 typedef struct rknn_matmul_info_t
