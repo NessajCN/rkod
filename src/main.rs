@@ -53,13 +53,13 @@ fn main() -> io::Result<()> {
 
         let mut frame_extractor = FrameExtractor::new(&input, [app_ctx.width(), app_ctx.height()])?;
 
-        let mut frame_count = 0 as usize;
+        // let mut frame_count = 0 as usize;
         for (stream, packet) in ictx.packets() {
             // Detect objects from 1 frame every 64 extracted.
-            frame_count = frame_count.wrapping_add(1 as usize);
-            if frame_count % 32 != 0 && !packet.is_key() {
-                continue;
-            }
+            // frame_count = frame_count.wrapping_add(1 as usize);
+            // if frame_count % 32 != 0 && !packet.is_key() {
+            //     continue;
+            // }
 
             // Find key frame
             // if !packet.is_key() {
@@ -70,7 +70,7 @@ fn main() -> io::Result<()> {
                 if let Ok(f) = frame_extractor.process_frames(&app_ctx) {
                     match f {
                         None => {
-                            info!("No object deteced.");
+                            // info!("No object deteced.");
                         }
                         Some(r) => {
                             let results = r
