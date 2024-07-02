@@ -57,7 +57,7 @@ fn main() -> io::Result<()> {
         for (stream, packet) in ictx.packets() {
             // Detect objects from 1 frame every 64 extracted.
             frame_count = frame_count.wrapping_add(1 as usize);
-            if frame_count % 32 != 0 && !packet.is_key() {
+            if frame_count % 32 != 0 {
                 continue;
             }
 
