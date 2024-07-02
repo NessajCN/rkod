@@ -53,24 +53,30 @@ fn main() -> io::Result<()> {
 
         let mut frame_extractor = FrameExtractor::new(&input, [app_ctx.width(), app_ctx.height()])?;
 
+        let mut frame_count = 0u8;
         for (stream, packet) in ictx.packets() {
+            // Detect objects from 1 frame every 5 extracted.
+            if frame_count % 5 != 0 {
+                continue;
+            }
             if stream.index() == video_stream_index {
                 frame_extractor.send_packet_to_decoder(&packet)?;
                 if let Ok(f) = frame_extractor.process_frames(&app_ctx) {
                     match f {
                         None => {
-                            info!("No object deteced.")
+                            info!("No object deteced.");
                         }
                         Some(r) => {
                             let results = r
                                 .into_iter()
                                 .map(|(id, prob)| (labels[id as usize].clone(), prob))
                                 .collect::<Vec<_>>();
-                            info!("Object detected: {results:?}")
+                            info!("Object detected: {results:?}");
                         }
                     }
-                };
+                }
             }
+            frame_count = frame_count.wrapping_add(1u8);
         }
         frame_extractor.send_eof_to_decoder()?;
         frame_extractor.process_frames(&app_ctx)?;

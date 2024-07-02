@@ -15,7 +15,7 @@ use crate::{
     rknn_outputs_get, rknn_outputs_release, rknn_query, rknn_run, rknn_tensor_attr,
 };
 use libc::c_void;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 // const OBJ_NAME_MAX_SIZE: u8 = 64;
 const OBJ_NUMB_MAX_SIZE: i32 = 128;
@@ -350,7 +350,7 @@ impl RknnAppContext {
             inputs.push(input);
         }
 
-        info!("Setting rknn inputs...n_input: {}", self.io_num.n_input);
+        // info!("Setting rknn inputs...n_input: {}", self.io_num.n_input);
 
         let ret =
             unsafe { rknn_inputs_set(self.rknn_ctx, self.io_num.n_input, inputs.as_mut_ptr()) };
@@ -363,7 +363,7 @@ impl RknnAppContext {
             ));
         }
 
-        info!("Running rknn...");
+        // info!("Running rknn...");
 
         let ret = unsafe { rknn_run(self.rknn_ctx, null_mut()) };
 
@@ -387,7 +387,7 @@ impl RknnAppContext {
             outputs.push(output);
         }
 
-        info!("Generating outputs...");
+        // info!("Generating outputs...");
 
         let ret = unsafe {
             rknn_outputs_get(
@@ -408,7 +408,7 @@ impl RknnAppContext {
         // Post process
         // let mut valid_count = 0;
 
-        info!("Post process begins...");
+        // info!("Post process begins...");
 
         let mut filter_boxes: Vec<[f32; 4]> = Vec::new();
         let mut obj_probs: Vec<f32> = Vec::new();
@@ -586,7 +586,7 @@ impl RknnAppContext {
         }
 
         if obj_probs.len() == 0 {
-            warn!("No object detected");
+            // warn!("No object detected");
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 "No object detected",
