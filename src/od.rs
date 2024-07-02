@@ -22,7 +22,7 @@ const OBJ_NUMB_MAX_SIZE: i32 = 128;
 const OBJ_CLASS_NUM: i32 = 2;
 const NMS_THRESH: f32 = 0.45;
 const BOX_THRESH: f32 = 0.25;
-const PROB_THRESHOLD: f32 = 0.3;
+const PROB_THRESHOLD: f32 = 0.2;
 
 // #[derive(Debug, Default, Clone, Copy)]
 // struct ImageRect {
