@@ -57,6 +57,7 @@ fn main() -> io::Result<()> {
         for (stream, packet) in ictx.packets() {
             // Detect objects from 1 frame every 5 extracted.
             if frame_count % 5 != 0 {
+                info!("{frame_count}");
                 continue;
             }
             if stream.index() == video_stream_index {
