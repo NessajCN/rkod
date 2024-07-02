@@ -53,9 +53,10 @@ fn main() -> io::Result<()> {
 
         let mut frame_extractor = FrameExtractor::new(&input, [app_ctx.width(), app_ctx.height()])?;
 
-        let mut frame_count = 0u8;
+        let mut frame_count = 0 as usize;
         for (stream, packet) in ictx.packets() {
             // Detect objects from 1 frame every 5 extracted.
+            frame_count = frame_count.wrapping_add(1 as usize);
             if frame_count % 5 != 0 {
                 info!("{frame_count}");
                 continue;
@@ -77,7 +78,6 @@ fn main() -> io::Result<()> {
                     }
                 }
             }
-            frame_count = frame_count.wrapping_add(1u8);
         }
         frame_extractor.send_eof_to_decoder()?;
         frame_extractor.process_frames(&app_ctx)?;
