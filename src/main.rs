@@ -53,19 +53,19 @@ fn main() -> io::Result<()> {
 
         let mut frame_extractor = FrameExtractor::new(&input, [app_ctx.width(), app_ctx.height()])?;
 
-        // let mut frame_count = 0 as usize;
+        let mut frame_count = 0 as usize;
         for (stream, packet) in ictx.packets() {
             // Detect objects from 1 frame every 64 extracted.
-            // frame_count = frame_count.wrapping_add(1 as usize);
-            // if frame_count % 64 != 0 {
-            //     // info!("{frame_count}");
-            //     continue;
-            // }
-
-            // Find key frame
-            if !packet.is_key() {
+            frame_count = frame_count.wrapping_add(1 as usize);
+            if frame_count % 64 != 0 && !packet.is_key() {
+                // info!("{frame_count}");
                 continue;
             }
+
+            // Find key frame
+            // if !packet.is_key() {
+            //     continue;
+            // }
             if stream.index() == video_stream_index {
                 frame_extractor.send_packet_to_decoder(&packet)?;
                 if let Ok(f) = frame_extractor.process_frames(&app_ctx) {
