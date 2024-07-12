@@ -72,14 +72,14 @@ impl ObjectDetectList {
                 break;
             }
             let n = order[i];
+            if n == 0xffff {
+                continue;
+            }
 
             if obj_probs[n] < PROB_THRESHOLD {
                 break;
             }
 
-            if n == 0xffff {
-                continue;
-            }
             let res = ObjectDetection {
                 prob: obj_probs[n],
                 cls_id: class_id[n],
@@ -711,10 +711,8 @@ fn cal_overlap(mxy: [f32; 8]) -> f32 {
         0.
     };
     let i = w * h;
-    let u = (mxy[2] - mxy[0] + 1.)
-        * (mxy[3] - mxy[1] + 1.)
-        + (mxy[6] - mxy[4] + 1.)
-        * (mxy[7] - mxy[5] + 1.)
+    let u = (mxy[2] - mxy[0] + 1.) * (mxy[3] - mxy[1] + 1.)
+        + (mxy[6] - mxy[4] + 1.) * (mxy[7] - mxy[5] + 1.)
         - i;
     if u <= 0. {
         0.
