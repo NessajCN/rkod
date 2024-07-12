@@ -25,7 +25,11 @@ python convert.py ../model/yolov8n.onnx rk3588
 ```
 Move `yolov8.rknn` in `rkod/model`
 
-- Run it with
+- To detect objects in a single image:
 ```bash
 cargo run -- -m <model/path> -i <image/path>
+```
+- To continuously detect the rtsp stream:
+```bash
+cargo run -- -m <model/path> -i rtsp://<rtsp-stream-path>
 ```
