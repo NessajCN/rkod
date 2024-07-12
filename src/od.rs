@@ -687,8 +687,8 @@ pub fn nms(
                 filter_boxes[m][2],
                 filter_boxes[m][3],
             ]);
+            info!("filtering iou: {iou}");
             if iou > NMS_THRESH {
-                info!("filtered iou: {iou}");
                 order[j] = 0xffff;
             }
         }
