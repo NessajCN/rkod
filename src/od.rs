@@ -687,7 +687,6 @@ pub fn nms(
                 filter_boxes[m][2],
                 filter_boxes[m][3],
             ]);
-            info!("filtering iou: {iou}");
             if iou > NMS_THRESH {
                 order[j] = 0xffff;
             }
@@ -714,7 +713,7 @@ fn cal_overlap(mxy: [f32; 8]) -> f32 {
     let i = w * h;
     let u = (mxy[2] - mxy[0] + 1.)
         * (mxy[3] - mxy[1] + 1.)
-        * (mxy[6] - mxy[4] + 1.)
+        + (mxy[6] - mxy[4] + 1.)
         * (mxy[7] - mxy[5] + 1.)
         - i;
     if u <= 0. {
