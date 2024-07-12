@@ -21,7 +21,7 @@ use tracing::{error, info};
 const OBJ_NUMB_MAX_SIZE: i32 = 128;
 const OBJ_CLASS_NUM: i32 = 2;
 const NMS_THRESH: f32 = 0.1;
-const BOX_THRESH: f32 = 0.25;
+const BOX_THRESH: f32 = 0.4;
 const PROB_THRESHOLD: f32 = 0.2;
 
 // #[derive(Debug, Default, Clone, Copy)]
