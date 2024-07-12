@@ -20,7 +20,7 @@ use tracing::{error, info};
 // const OBJ_NAME_MAX_SIZE: u8 = 64;
 const OBJ_NUMB_MAX_SIZE: i32 = 128;
 const OBJ_CLASS_NUM: i32 = 2;
-const NMS_THRESH: f32 = 0.45;
+const NMS_THRESH: f32 = 0.6;
 const BOX_THRESH: f32 = 0.25;
 const PROB_THRESHOLD: f32 = 0.2;
 
