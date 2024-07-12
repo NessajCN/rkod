@@ -75,7 +75,7 @@ fn main() -> io::Result<()> {
                         Some(r) => {
                             let results = r
                                 .into_iter()
-                                .map(|(id, prob)| (labels[id as usize].clone(), prob))
+                                .map(|(id, prob, f_box)| (labels[id as usize].clone(), prob, f_box))
                                 .collect::<Vec<_>>();
                             info!("Object detected: {results:?}");
                         }
@@ -104,7 +104,7 @@ fn main() -> io::Result<()> {
         let results = od_results
             .get_results()
             .into_iter()
-            .map(|(id, prob)| (labels[id as usize].clone(), prob))
+            .map(|(id, prob, f_box)| (labels[id as usize].clone(), prob, f_box))
             .collect::<Vec<_>>();
 
         info!("results: {results:?}");

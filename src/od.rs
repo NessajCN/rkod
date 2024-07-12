@@ -37,6 +37,7 @@ struct ObjectDetection {
     // rect: ImageRect,
     prob: f32,
     cls_id: i32,
+    f_box: [f32; 4],
 }
 
 #[derive(Debug, Clone, Default)]
@@ -46,7 +47,12 @@ pub struct ObjectDetectList {
 }
 
 impl ObjectDetectList {
-    pub fn new(class_id: &Vec<i32>, obj_probs: &Vec<f32>, order: &Vec<usize>) -> Result<Self> {
+    pub fn new(
+        class_id: &Vec<i32>,
+        obj_probs: &Vec<f32>,
+        order: &Vec<usize>,
+        filter_boxes: &Vec<[f32; 4]>,
+    ) -> Result<Self> {
         if class_id.len() != obj_probs.len() || order.len() != class_id.len() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -77,6 +83,7 @@ impl ObjectDetectList {
             let res = ObjectDetection {
                 prob: obj_probs[n],
                 cls_id: class_id[n],
+                f_box: filter_boxes[n],
             };
             results.push(res);
             count += 1;
@@ -84,10 +91,10 @@ impl ObjectDetectList {
         Ok(Self { count, results })
     }
 
-    pub fn get_results(&self) -> Vec<(i32, f32)> {
+    pub fn get_results(&self) -> Vec<(i32, f32, [f32; 4])> {
         self.results
             .iter()
-            .map(|r| (r.cls_id, r.prob))
+            .map(|r| (r.cls_id, r.prob, r.f_box))
             .collect::<Vec<_>>()
     }
 
@@ -609,7 +616,7 @@ impl RknnAppContext {
 
         // nms end
 
-        let od_result = match ObjectDetectList::new(&class_id, &obj_probs, &order) {
+        let od_result = match ObjectDetectList::new(&class_id, &obj_probs, &order, &filter_boxes) {
             Ok(r) => r,
             Err(e) => {
                 return Err(io::Error::new(io::ErrorKind::InvalidData, e));

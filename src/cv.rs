@@ -46,7 +46,7 @@ impl FrameExtractor {
         Ok(())
     }
 
-    pub fn process_frames(&mut self, app_ctx: &RknnAppContext) -> Result<Option<Vec<(i32, f32)>>> {
+    pub fn process_frames(&mut self, app_ctx: &RknnAppContext) -> Result<Option<Vec<(i32, f32, [f32;4])>>> {
         let mut frame = frame::Video::empty();
         while self.decoder.receive_frame(&mut frame).is_ok() {
             let timestamp = frame.timestamp();
