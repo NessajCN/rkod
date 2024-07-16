@@ -10,6 +10,7 @@ use tracing::info;
 
 pub mod od;
 pub mod cv;
+pub mod upload;
 
 pub fn dump_tensor_attr(attr: &rknn_tensor_attr) {
     let mut name: Vec<u8> = Vec::new();
