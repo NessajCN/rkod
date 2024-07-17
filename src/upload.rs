@@ -6,7 +6,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{runtime::Builder, sync::mpsc};
-use tracing::{error, warn, info};
+use tracing::{error, info, warn};
 
 pub type OdResults = Vec<(String, f32, [f32; 4])>;
 
@@ -169,9 +169,10 @@ impl UploaderWorker {
                     info!("token retrieved: {token}");
                 }
                 while let Some(res) = rx_odres.recv().await {
-                    info!("channel received: {res:?}");
                     if let None = uploader.token.as_ref() {
-                        let _ = uploader.get_token();
+                        if let Ok(token) = uploader.get_token().await {
+                            info!("token retrieved: {token}");
+                        }
                     }
                     let up = uploader.clone();
                     tokio::spawn(async move {
