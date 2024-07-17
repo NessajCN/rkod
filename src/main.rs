@@ -65,7 +65,6 @@ fn main() -> io::Result<()> {
 
         let upworker = if args.upload {
             let u = UploaderWorker::new();
-            info!("uploader initialized");
             Some(u)
         } else {
             None

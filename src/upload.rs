@@ -100,7 +100,7 @@ impl OdResultUploader {
         }
     }
 
-    async fn get_token(&mut self) -> Result<(), UpError> {
+    async fn get_token(&mut self) -> Result<String, UpError> {
         let token_req = TokenReqPayload::new(&self.config.username, &self.config.passwd);
         let api_url = format!("{}getToken", &self.config.api_prefix);
         let res = self.client.post(api_url).json(&token_req).send().await?;
@@ -108,8 +108,8 @@ impl OdResultUploader {
         match res.status().as_u16() {
             200u16 => {
                 let token_res = res.json::<TokenRes>().await?;
-                self.token = Some(token_res.token);
-                Ok(())
+                self.token = Some(token_res.token.clone());
+                Ok(token_res.token)
             }
             _ => {
                 let msg = res.json::<TokenRes>().await?.message;
@@ -165,8 +165,11 @@ impl UploaderWorker {
         std::thread::spawn(move || {
             rt.block_on(async move {
                 let mut uploader = OdResultUploader::new();
-                let _ = uploader.get_token();
+                if let Ok(token) = uploader.get_token().await {
+                    info!("token retrieved: {token}");
+                }
                 while let Some(res) = rx_odres.recv().await {
+                    info!("channel received: {res:?}");
                     if let None = uploader.token.as_ref() {
                         let _ = uploader.get_token();
                     }
@@ -180,7 +183,6 @@ impl UploaderWorker {
         Self { tx_odres }
     }
     pub fn upload_odres(&self, od_res: OdResults) -> Result<(), UpError> {
-        info!("uploading od_res: {od_res:?}");
         match self.tx_odres.blocking_send(od_res) {
             Ok(()) => Ok(()),
             Err(e) => Err(UpError::ChannelError(e.to_string())),
