@@ -1,7 +1,4 @@
-use std::{
-    fs, io,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, fs};
 
 use reqwest::{
     header::{HeaderMap, CONTENT_TYPE},
@@ -13,11 +10,29 @@ use tracing::{error, warn};
 
 pub type OdResults = Vec<(String, f32, [f32; 4])>;
 
-enum UpError {
+#[derive(Serialize)]
+struct OdRequest<'a> {
+    device: &'a str,
+    objects: HashMap<&'a str, u32>,
+}
+
+impl<'a> OdRequest<'a> {
+    fn new(od_res: &'a OdResults, device: &'a str) -> Self {
+        let mut objects: HashMap<&str, u32> = HashMap::new();
+        for r in od_res.iter() {
+            objects.entry(&r.0).and_modify(|e| *e += 1).or_insert(1);
+        }
+        Self { device, objects }
+    }
+}
+
+#[derive(Debug)]
+pub enum UpError {
     NoToken,
     Unauthorized,
     PostFailed(String),
     ReqwestError(String),
+    ChannelError(String),
 }
 
 impl From<reqwest::Error> for UpError {
@@ -97,15 +112,15 @@ impl OdResultUploader {
             200u16 => {
                 let token_res = res.json::<TokenRes>().await?;
                 self.token = Some(token_res.token);
+                Ok(())
             }
             _ => {
                 let msg = res.json::<TokenRes>().await?.message;
                 error!("Get token request failed: {msg}");
                 self.token = None;
-                return Err(UpError::Unauthorized);
+                Err(UpError::Unauthorized)
             }
         }
-        Ok(())
     }
 
     async fn upload(&self, od_res: &OdResults) -> Result<(), UpError> {
@@ -116,37 +131,38 @@ impl OdResultUploader {
                 headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
                 headers.insert("token", t.parse().unwrap());
 
+                let od_req = OdRequest::new(od_res, &self.config.device_name);
                 let res = self
                     .client
                     .post(format!("{}od", &self.config.api_prefix))
-                    .json(od_res)
-                    .headers(headers.to_owned())
+                    .json(&od_req)
+                    .headers(headers)
                     .send()
                     .await?;
-                let ret = match res.status().as_u16() {
+                match res.status().as_u16() {
                     200u16 => Ok(()),
                     401 => Err(UpError::Unauthorized),
                     s => {
-                        let msg = res.json::<TokenRes>().await?.message;
-                        warn!("upload od result response: {s} - {msg}");
-                        Err(UpError::PostFailed(msg))
+                        let response = res.json::<TokenRes>().await?;
+                        warn!(
+                            "upload od result response: {s} - success: {}, message: {}",
+                            response.success, response.message
+                        );
+                        Err(UpError::PostFailed(response.message))
                     }
-                };
-                return ret;
+                }
             }
-            None => {
-                return Err(UpError::NoToken);
-            }
+            None => Err(UpError::NoToken),
         }
     }
 }
 
-struct UploaderWorker {
+pub struct UploaderWorker {
     tx_odres: mpsc::Sender<OdResults>,
 }
 
 impl UploaderWorker {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let (tx_odres, mut rx_odres) = mpsc::channel(16);
         let rt = Builder::new_current_thread().enable_all().build().unwrap();
         std::thread::spawn(move || {
@@ -165,5 +181,11 @@ impl UploaderWorker {
             })
         });
         Self { tx_odres }
+    }
+    pub fn upload_odres(&self, od_res: OdResults) -> Result<(), UpError> {
+        match self.tx_odres.blocking_send(od_res) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(UpError::ChannelError(e.to_string())),
+        }
     }
 }

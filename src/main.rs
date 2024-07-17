@@ -2,9 +2,14 @@ extern crate ffmpeg_next as ffmpeg;
 
 use clap::Parser;
 use image::io::Reader as ImageReader;
-use rkod::{cv::FrameExtractor, od::RknnAppContext, read_lines};
+use rkod::{
+    cv::FrameExtractor,
+    od::RknnAppContext,
+    read_lines,
+    upload::{UpError, UploaderWorker},
+};
 use std::io::{self, Error, ErrorKind};
-use tracing::info;
+use tracing::{error, info};
 
 use ffmpeg::{format, media};
 // use tracing_subscriber::fmt::time::ChronoLocal;
@@ -19,6 +24,11 @@ struct Args {
     /// Path to the input for inference. Could be image or video.
     #[arg(short, long)]
     input: String,
+
+    /// Object detection results uploading switch.
+    /// You don't need it unless you have deployed your own RESTful API.
+    #[arg(short, long)]
+    upload: bool,
 }
 
 fn main() -> io::Result<()> {
@@ -53,6 +63,12 @@ fn main() -> io::Result<()> {
 
         let mut frame_extractor = FrameExtractor::new(&input, [app_ctx.width(), app_ctx.height()])?;
 
+        let upworker = if args.upload {
+            let u = UploaderWorker::new();
+            Some(u)
+        } else {
+            None
+        };
         // let mut frame_count = 0 as usize;
         for (stream, packet) in ictx.packets() {
             // Detect objects from 1 frame every 64 extracted.
@@ -67,19 +83,22 @@ fn main() -> io::Result<()> {
             }
             if stream.index() == video_stream_index {
                 frame_extractor.send_packet_to_decoder(&packet)?;
-                if let Ok(f) = frame_extractor.process_frames(&app_ctx) {
-                    match f {
-                        None => {
-                            info!("No object deteced.");
-                        }
-                        Some(r) => {
-                            let results = r
-                                .into_iter()
-                                .map(|(id, prob, f_box)| (labels[id as usize].clone(), prob, f_box))
-                                .collect::<Vec<_>>();
-                            info!("Object detected: {results:?}");
+                if let Some(r) = frame_extractor.process_frames(&app_ctx)? {
+                    let results = r
+                        .into_iter()
+                        .map(|(id, prob, f_box)| (labels[id as usize].clone(), prob, f_box))
+                        .collect::<Vec<_>>();
+
+                    if let Some(upload_worker) = upworker.as_ref() {
+                        if let Err(UpError::ChannelError(e)) =
+                            upload_worker.upload_odres(results.clone())
+                        {
+                            error!("Failed to send od result to UploadWorker channel: {e}");
                         }
                     }
+                    info!("Object detected: {results:?}");
+                } else {
+                    info!("No object deteced.");
                 }
             }
         }
