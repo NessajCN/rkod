@@ -56,23 +56,20 @@ struct Config {
 
 impl Config {
     pub fn new() -> Self {
-        let c = fs::read_to_string("../rtcrs/config.toml").expect("Error reading config.toml");
+        let c = fs::read_to_string("config.toml").expect("Error reading config.toml");
         toml::from_str::<Config>(&c).expect("Error parsing config.toml")
     }
 }
 
 #[derive(Serialize)]
-struct TokenReqPayload {
-    name: String,
-    password: String,
+struct TokenReqPayload<'a> {
+    name: &'a str,
+    password: &'a str,
 }
 
-impl TokenReqPayload {
-    fn new(name: &str, password: &str) -> Self {
-        Self {
-            name: name.into(),
-            password: password.into(),
-        }
+impl<'a> TokenReqPayload<'a> {
+    fn new(name: &'a str, password: &'a str) -> Self {
+        Self { name, password }
     }
 }
 
