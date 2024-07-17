@@ -6,7 +6,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{runtime::Builder, sync::mpsc};
-use tracing::{error, warn};
+use tracing::{error, warn, info};
 
 pub type OdResults = Vec<(String, f32, [f32; 4])>;
 
@@ -180,6 +180,7 @@ impl UploaderWorker {
         Self { tx_odres }
     }
     pub fn upload_odres(&self, od_res: OdResults) -> Result<(), UpError> {
+        info!("uploading od_res: {od_res:?}");
         match self.tx_odres.blocking_send(od_res) {
             Ok(()) => Ok(()),
             Err(e) => Err(UpError::ChannelError(e.to_string())),
