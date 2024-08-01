@@ -67,12 +67,6 @@ struct TokenReqPayload<'a> {
     password: &'a str,
 }
 
-impl<'a> TokenReqPayload<'a> {
-    fn new(name: &'a str, password: &'a str) -> Self {
-        Self { name, password }
-    }
-}
-
 #[derive(Deserialize)]
 struct TokenRes {
     message: String,
@@ -101,7 +95,10 @@ impl OdResultUploader {
     }
 
     async fn get_token(&mut self) -> Result<String, UpError> {
-        let token_req = TokenReqPayload::new(&self.config.username, &self.config.passwd);
+        let token_req = TokenReqPayload {
+            name: &self.config.username,
+            password: &self.config.passwd,
+        };
         let api_url = format!("{}getToken", &self.config.api_prefix);
         let res = self.client.post(api_url).json(&token_req).send().await?;
 
@@ -184,9 +181,11 @@ impl UploaderWorker {
         Self { tx_odres }
     }
     pub fn upload_odres(&self, od_res: OdResults) -> Result<(), UpError> {
-        match self.tx_odres.blocking_send(od_res) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(UpError::ChannelError(e.to_string())),
+        // Uploading threahold can be modified below in (..5, _) arm.
+        match (od_res.len(), self.tx_odres.blocking_send(od_res)) {
+            (..5, _) => Ok(()),
+            (_, Ok(_)) => Ok(()),
+            (_, Err(e)) => Err(UpError::ChannelError(e.to_string())),
         }
     }
 }
