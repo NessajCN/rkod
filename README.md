@@ -33,3 +33,5 @@ cargo run -- -m <model/path> -i <image/path>
 ```bash
 cargo run -- -m <model/path> -i rtsp://<rtsp-stream-path>
 ```
+
+> Note: It is recommended to compile and install the Rockchip version of ffmpeg following [this guild](https://github.com/nyanmisaka/ffmpeg-rockchip/wiki/Compilation) if you intend to detect an rtsp streaming.

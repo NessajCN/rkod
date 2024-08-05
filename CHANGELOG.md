@@ -2,6 +2,11 @@
 
 All notable changes to the `rkod` project will be documented in this file.
 
+## 0.3.0
+
+- 更新依赖
+- 加入识别结果上传过滤（仅上传 `person` 和 5 个以上 `hat`）
+
 ## 0.2.0
 
 已完成全部识别和抓帧的模块，并新加入上传识别结果到 api 接口的模块 `upload.rs`

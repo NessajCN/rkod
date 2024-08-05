@@ -1,7 +1,7 @@
 extern crate ffmpeg_next as ffmpeg;
 
 use clap::Parser;
-use image::io::Reader as ImageReader;
+use image::ImageReader;
 use rkod::{
     cv::FrameExtractor,
     od::RknnAppContext,
