@@ -48,10 +48,10 @@ pub struct ObjectDetectList {
 
 impl ObjectDetectList {
     pub fn new(
-        class_id: &Vec<i32>,
-        obj_probs: &Vec<f32>,
-        order: &Vec<usize>,
-        filter_boxes: &Vec<[f32; 4]>,
+        class_id: &[i32],
+        obj_probs: &[f32],
+        order: &[usize],
+        filter_boxes: &[[f32; 4]],
     ) -> Result<Self> {
         if class_id.len() != obj_probs.len() || order.len() != class_id.len() {
             return Err(io::Error::new(
@@ -662,9 +662,9 @@ fn compute_dfl(tensor: Vec<f32>, dfl_len: usize) -> [f32; 4] {
 }
 
 pub fn nms(
-    filter_boxes: &Vec<[f32; 4]>,
-    class_id: &Vec<i32>,
-    order: &mut Vec<usize>,
+    filter_boxes: &[[f32; 4]],
+    class_id: &[i32],
+    order: &mut [usize],
     filter_id: i32,
 ) {
     for i in 0..class_id.len() {
