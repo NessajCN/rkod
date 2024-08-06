@@ -166,7 +166,6 @@ impl UploaderWorker {
                     info!("token retrieved: {token}");
                 }
                 while let Some(res) = rx_odres.recv().await {
-                    info!("Uploading detection: {res:?}");
                     if let None = uploader.token.as_ref() {
                         if let Ok(token) = uploader.get_token().await {
                             info!("token retrieved: {token}");
