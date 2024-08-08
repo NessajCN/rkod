@@ -148,27 +148,6 @@ impl RknnAppContext {
     pub fn init_model(&mut self, path: &str) -> Result<()> {
         let mut ctx: rknn_context = 0;
 
-        // let mut model_raw = 0 as c_char;
-        // let mut model_ptr = &mut model_raw as *mut _;
-        // let model = &mut model_ptr as *mut *mut _;
-        // // let model = Box::into_raw(Box::new(Box::into_raw(model_raw)));
-
-        // // Find absolute path of the model
-        // let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-        // let path = format!("{}", Path::new(&dir).join(path).display());
-        // let model_path = CString::new(path).unwrap();
-
-        // // Load RKNN Model
-        // let model_len = unsafe { read_data_from_file(model_path.as_ptr(), model) };
-
-        // if model_len < 0 {
-        //     error!("Failed to load rknn model. Return code: {model_len}");
-        //     return Err(io::Error::new(
-        //         io::ErrorKind::InvalidData,
-        //         "Failed to load rknn model",
-        //     ));
-        // }
-
         let mut model = File::open(path)?;
         let mut model_buf: Vec<u8> = Vec::new();
 
@@ -329,19 +308,6 @@ impl RknnAppContext {
     }
 
     pub fn inference_model(&self, img: &[u8]) -> Result<ObjectDetectList> {
-        // let reader = ImageReader::open(img_path)?;
-        // let img = match reader.decode() {
-        //     Ok(m) => m,
-        //     Err(e) => {
-        //         return Err(Error::new(ErrorKind::InvalidInput, e.to_string()));
-        //     }
-        // };
-        // let img = img.resize_to_fill(
-        //     self.model_width as u32,
-        //     self.model_height as u32,
-        //     image::imageops::FilterType::Nearest,
-        // );
-
         let img_buf = img.as_ptr() as *mut c_void;
         let mut inputs: Vec<rknn_input> = Vec::new();
         for n in 0..self.io_num.n_input {
@@ -602,9 +568,6 @@ impl RknnAppContext {
 
         let class_set: HashSet<i32> = HashSet::from_iter(class_id.clone().into_iter());
 
-        // info!("obj_probs: {obj_probs:?}");
-        // info!("class_id: {class_id:?}");
-
         let mut order = (0..obj_probs.len()).collect::<Vec<_>>();
         order.sort_by(|&a, &b| obj_probs[b].total_cmp(&obj_probs[a]));
 
@@ -661,12 +624,7 @@ fn compute_dfl(tensor: Vec<f32>, dfl_len: usize) -> [f32; 4] {
     draw_box
 }
 
-pub fn nms(
-    filter_boxes: &[[f32; 4]],
-    class_id: &[i32],
-    order: &mut [usize],
-    filter_id: i32,
-) {
+pub fn nms(filter_boxes: &[[f32; 4]], class_id: &[i32], order: &mut [usize], filter_id: i32) {
     for i in 0..class_id.len() {
         if (order[i] == 0xffff) || (class_id[i] != filter_id) {
             continue;
