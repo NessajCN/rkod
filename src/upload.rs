@@ -1,11 +1,15 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, sync::Arc};
 
+use chrono::{DateTime, Utc};
 use reqwest::{
     header::{HeaderMap, CONTENT_TYPE},
     Client,
 };
 use serde::{Deserialize, Serialize};
-use tokio::{runtime::Builder, sync::mpsc};
+use tokio::{
+    runtime::Builder,
+    sync::{mpsc, Mutex},
+};
 use tracing::{error, info, warn};
 
 pub type OdResults = Vec<(String, f32, [f32; 4])>;
@@ -117,7 +121,11 @@ impl OdResultUploader {
         }
     }
 
-    async fn upload(&self, od_res: &OdResults) -> Result<(), UpError> {
+    async fn upload(
+        &self,
+        od_res: &OdResults,
+        tick: Arc<Mutex<DateTime<Utc>>>,
+    ) -> Result<(), UpError> {
         match self.token.as_ref() {
             Some(t) => {
                 let mut headers = HeaderMap::new();
@@ -134,7 +142,11 @@ impl OdResultUploader {
                     .send()
                     .await?;
                 match res.status().as_u16() {
-                    200u16 => Ok(()),
+                    200u16 => {
+                        let mut t = tick.lock().await;
+                        *t = Utc::now();
+                        Ok(())
+                    }
                     401 => Err(UpError::Unauthorized),
                     s => {
                         let response = res.json::<TokenRes>().await?;
@@ -157,7 +169,7 @@ pub struct UploaderWorker {
 
 impl UploaderWorker {
     pub fn new() -> Self {
-        let (tx_odres, mut rx_odres) = mpsc::channel(16);
+        let (tx_odres, mut rx_odres) = mpsc::channel::<OdResults>(16);
         let rt = Builder::new_current_thread().enable_all().build().unwrap();
         std::thread::spawn(move || {
             rt.block_on(async move {
@@ -165,16 +177,35 @@ impl UploaderWorker {
                 if let Ok(token) = uploader.get_token().await {
                     info!("token retrieved: {token}");
                 }
+                let tick = Arc::new(Mutex::new(Utc::now()));
                 while let Some(res) = rx_odres.recv().await {
+                    let mut last_tick = tick.lock().await;
+                    let delta = Utc::now() - *last_tick;
+
+                    // Upload results every 10 seconds unless staff crowded 5 more
+                    // or unhelmed individual detected
+                    if delta.num_seconds() < 10
+                        && !res.iter().any(|r| r.0 == "person")
+                        && res.len() < 5
+                    {
+                        continue;
+                    }
+
                     if let None = uploader.token.as_ref() {
                         if let Ok(token) = uploader.get_token().await {
                             info!("token retrieved: {token}");
+                        } else {
+                            warn!("failed to retrieve token");
+                            *last_tick = Utc::now();
+                            continue;
                         }
                     }
-                    let up = uploader.clone();
-                    tokio::spawn(async move {
-                        let _ = up.upload(&res).await;
-                    });
+                    // drop last_tick to unlock.
+                    drop(last_tick);
+
+                    if let Err(UpError::Unauthorized) = uploader.upload(&res, tick.clone()).await {
+                        uploader.token = None;
+                    }
                 }
             })
         });
@@ -182,13 +213,18 @@ impl UploaderWorker {
     }
     pub fn upload_odres(&self, od_res: OdResults) -> Result<(), UpError> {
         // Upload results only if including `person` or 5 more `hat`.
-        if od_res.iter().any(|res| res.0 == "person") || od_res.len() > 5 {
-            match self.tx_odres.blocking_send(od_res) {
-                Ok(_) => Ok(()),
-                Err(e) => Err(UpError::ChannelError(e.to_string())),
-            }
-        } else {
-            Ok(())
+        // if od_res.iter().any(|res| res.0 == "person") || od_res.len() > 5 {
+        //     match self.tx_odres.blocking_send(od_res) {
+        //         Ok(_) => Ok(()),
+        //         Err(e) => Err(UpError::ChannelError(e.to_string())),
+        //     }
+        // } else {
+        //     Ok(())
+        // }
+
+        match self.tx_odres.blocking_send(od_res) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(UpError::ChannelError(e.to_string())),
         }
     }
 }
