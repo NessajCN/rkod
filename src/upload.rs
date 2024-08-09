@@ -212,16 +212,6 @@ impl UploaderWorker {
         Self { tx_odres }
     }
     pub fn upload_odres(&self, od_res: OdResults) -> Result<(), UpError> {
-        // Upload results only if including `person` or 5 more `hat`.
-        // if od_res.iter().any(|res| res.0 == "person") || od_res.len() > 5 {
-        //     match self.tx_odres.blocking_send(od_res) {
-        //         Ok(_) => Ok(()),
-        //         Err(e) => Err(UpError::ChannelError(e.to_string())),
-        //     }
-        // } else {
-        //     Ok(())
-        // }
-
         match self.tx_odres.blocking_send(od_res) {
             Ok(_) => Ok(()),
             Err(e) => Err(UpError::ChannelError(e.to_string())),

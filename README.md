@@ -25,6 +25,10 @@ python convert.py ../model/yolov8n.onnx rk3588
 ```
 Move `yolov8.rknn` in `rkod/model`
 
+- Fill `model/label_list.txt` with object name labels as you trained(one per line). Example could be found in `model/coco_80_labels_list.txt`.
+
+- Change the const `OBJ_CLASS_NUM` in `src/od.rs` to the total number of entries you put in `model/labels_list.txt`. e.g. `const OBJ_CLASS_NUM: i32 = 80;` if you adopted `model/coco_80_labels_list.txt` as the labels_list.
+
 - To detect objects in a single image:
 ```bash
 cargo run -- -m <model/path> -i <image/path>

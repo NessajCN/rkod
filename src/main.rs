@@ -40,7 +40,7 @@ fn main() -> io::Result<()> {
         .init();
 
     let args = Args::parse();
-    let lines = read_lines("model/safety_hat.txt")?;
+    let lines = read_lines("model/label_list.txt")?;
     let labels = lines.flatten().collect::<Vec<String>>();
     let mut app_ctx = RknnAppContext::new();
     app_ctx.init_model(&args.model)?;
