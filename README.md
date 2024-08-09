@@ -23,7 +23,7 @@ python convert.py <onnx_model> <TARGET_PLATFORM> <dtype(optional)> <output_rknn_
 # such as: 
 python convert.py ../model/yolov8n.onnx rk3588
 ```
-Move `yolov8.rknn` in `rkod/model`
+- Move `yolov8.rknn` in `rkod/model`
 
 - Fill `model/label_list.txt` with object name labels as you trained(one per line). Example could be found in `model/coco_80_labels_list.txt`.
 
