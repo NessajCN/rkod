@@ -2,7 +2,7 @@
 
 All notable changes to the `rkod` project will be documented in this file.
 
-## 0.4.0
+## 0.4.0 - 2024-08-08
 
 - 加入识别结果上传时间间隔
 - 更新 README
