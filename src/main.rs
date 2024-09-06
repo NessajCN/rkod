@@ -98,7 +98,7 @@ fn main() -> io::Result<()> {
                     }
                     info!("Object detected: {results:?}");
                 } else {
-                    info!("No object deteced.");
+                    // info!("No object deteced.");
                 }
             }
         }
