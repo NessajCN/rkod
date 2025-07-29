@@ -1,7 +1,11 @@
 # Change log
 
 All notable changes to the `rkod` project will be documented in this file.
-
+## pre
+- ffmpeg_next to ffmpeg_the_third
+- edition = "2024"
+- unsafe extern "C" {
+- add run.sh    
 ## 0.4.0 - 2024-08-08
 
 - 加入识别结果上传时间间隔

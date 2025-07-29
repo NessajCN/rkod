@@ -2,3 +2,6 @@
 *.onnx
 *.rknn
 config.toml
+Cargo.lock
+.marscode/deviceInfo.json
+
