@@ -1,4 +1,4 @@
-extern crate ffmpeg_next as ffmpeg;
+extern crate ffmpeg_the_third as ffmpeg;
 
 use clap::Parser;
 use image::ImageReader;
@@ -70,7 +70,9 @@ fn main() -> io::Result<()> {
             None
         };
         // let mut frame_count = 0 as usize;
-        for (stream, packet) in ictx.packets() {
+        for packet_result in ictx.packets() {
+            let (stream, packet) = packet_result?;
+            
             // Detect objects from 1 frame every 64 extracted.
             // frame_count = frame_count.wrapping_add(1 as usize);
             // if frame_count % 32 != 0 {
