@@ -2,6 +2,10 @@
 
 All notable changes to the `rkod` project will be documented in this file.
 
+## 0.5.1 - 2025-10-9
+
+- ffmpeg support updated
+
 ## 0.5.0 - 2025-07-31
 
 - Bump rust version to 2024
